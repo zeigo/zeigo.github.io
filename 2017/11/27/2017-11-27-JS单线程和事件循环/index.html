@@ -12,13 +12,13 @@
 <meta property="og:url" content="http://zeigo.github.io/2017/11/27/2017-11-27-JS单线程和事件循环/index.html">
 <meta property="og:site_name" content="Zeigo&#39;s blog">
 <meta property="og:description" content="JavaScript, 单线程，事件循环，任务队列">
-<meta property="og:image" content="https://user-gold-cdn.xitu.io/2017/11/21/15fdd88994142347?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
-<meta property="og:image" content="https://user-gold-cdn.xitu.io/2017/11/21/15fdcea13361a1ec?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
-<meta property="og:updated_time" content="2017-11-27T10:20:17.014Z">
+<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20171127-%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97.png">
+<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20171127-%E5%AE%8F%E4%BB%BB%E5%8A%A1%E5%BE%AE%E4%BB%BB%E5%8A%A1.png">
+<meta property="og:updated_time" content="2017-11-27T12:02:35.373Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JavaScript单线程和事件循环">
 <meta name="twitter:description" content="JavaScript, 单线程，事件循环，任务队列">
-<meta name="twitter:image" content="https://user-gold-cdn.xitu.io/2017/11/21/15fdd88994142347?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta name="twitter:image" content="http://p02ojz1i2.bkt.clouddn.com/20171127-%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97.png">
   
   
     <link rel="icon" href="/favicon.png">
@@ -109,14 +109,14 @@
 <li><p>上述过程不断重复，也就是Event Loop(事件循环)。</p>
 </li>
 </ul>
-<p><img src="https://user-gold-cdn.xitu.io/2017/11/21/15fdd88994142347?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
+<p><img src="http://p02ojz1i2.bkt.clouddn.com/20171127-%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97.png" alt=""></p>
 <h1 id="Macro-Task-Micro-Task"><a href="#Macro-Task-Micro-Task" class="headerlink" title="Macro Task/Micro Task"></a>Macro Task/Micro Task</h1><ul>
 <li>macro: 整体代码script, setTimeout, setInterval, on</li>
 <li>micro: Promise, process.nextTick</li>
 </ul>
 <p>主线程执行完后，先从微任务Event Queue取出任务进栈，nextTick优于Promise。当微任务队列为空时，才开始取宏任务队列。</p>
 <p>注：宏任务队列不只有一个，根据回调的类型不同会有对应的任务队列，优先级不同，为简单理解可以视为只有一个宏任务队列。</p>
-<p><img src="https://user-gold-cdn.xitu.io/2017/11/21/15fdcea13361a1ec?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
+<p><img src="http://p02ojz1i2.bkt.clouddn.com/20171127-%E5%AE%8F%E4%BB%BB%E5%8A%A1%E5%BE%AE%E4%BB%BB%E5%8A%A1.png" alt=""></p>
 <h1 id="练习"><a href="#练习" class="headerlink" title="练习"></a>练习</h1><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">console</span>.log(<span class="string">'1'</span>);</span><br><span class="line"></span><br><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'2'</span>);</span><br><span class="line">    process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'3'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'4'</span>);</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'5'</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br><span class="line">process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'6'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"><span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'7'</span>);</span><br><span class="line">    resolve();</span><br><span class="line">&#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'8'</span>)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'9'</span>);</span><br><span class="line">    process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'10'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'11'</span>);</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'12'</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
 <p>去掉nextTick浏览器： 1 7 8 2 4 5 9 11 12</p>
 <p>理论输出：1 7 <strong>6</strong> 8 2 4 <strong>3</strong> 5 9 11 <strong>10</strong> 12</p>
@@ -134,7 +134,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://zeigo.github.io/2017/11/27/2017-11-27-JS单线程和事件循环/" data-id="cjai0yxi90000qu97a7f9jxmz" class="article-share-link">分享</a>
+      <a data-url="http://zeigo.github.io/2017/11/27/2017-11-27-JS单线程和事件循环/" data-id="cjai31t830004ck97nodefjvz" class="article-share-link">分享</a>
       
       
       

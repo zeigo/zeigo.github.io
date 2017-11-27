@@ -6,14 +6,14 @@
   <title>CSS整理(一) | Zeigo&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="CSS基础整理，盒模型，BFC，块盒，内联盒">
-<meta name="keywords" content="CSS,盒模型,BFC">
+<meta name="keywords" content="CSS">
 <meta property="og:type" content="article">
 <meta property="og:title" content="CSS整理(一)">
 <meta property="og:url" content="http://zeigo.github.io/2017/11/25/2017-11-25-CSS整理/index.html">
 <meta property="og:site_name" content="Zeigo&#39;s blog">
 <meta property="og:description" content="CSS基础整理，盒模型，BFC，块盒，内联盒">
 <meta property="og:image" content="https://www.w3.org/TR/2011/REC-CSS2-20110607/images/boxdim.png">
-<meta property="og:updated_time" content="2017-11-25T16:58:30.453Z">
+<meta property="og:updated_time" content="2017-11-27T10:02:20.322Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="CSS整理(一)">
 <meta name="twitter:description" content="CSS基础整理，盒模型，BFC，块盒，内联盒">
@@ -40,7 +40,7 @@
     <div id="header-inner" class="inner">
       <nav id="sub-nav">
         
-        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
         <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://zeigo.github.io"></form>
@@ -182,11 +182,11 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://zeigo.github.io/2017/11/25/2017-11-25-CSS整理/" data-id="cjafkz1cn0001uu979p4chfol" class="article-share-link">Share</a>
+      <a data-url="http://zeigo.github.io/2017/11/25/2017-11-25-CSS整理/" data-id="cjai0qto00001mu976qo4z6rq" class="article-share-link">分享</a>
       
       
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/BFC/">BFC</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/CSS/">CSS</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/盒模型/">盒模型</a></li></ul>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/CSS/">CSS</a></li></ul>
 
     </footer>
   </div>
@@ -194,7 +194,7 @@
     
  <script src="/jquery/jquery.min.js"></script>
   <div id="random_posts">
-    <h2>Recommended Posts</h2>
+    <h2>推荐文章</h2>
     <div class="random_posts_ul">
       <script>
           var random_count =4
@@ -236,9 +236,18 @@
     
 <nav id="article-nav">
   
+    <a href="/2017/11/27/2017-11-27-JS单线程和事件循环/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">上一篇</strong>
+      <div class="article-nav-title">
+        
+          JavaScript单线程和事件循环
+        
+      </div>
+    </a>
+  
   
     <a href="/2017/11/16/2017-11-16-Hexo-GitHub-1/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Older</strong>
+      <strong class="article-nav-caption">下一篇</strong>
       <div class="article-nav-title">Hexo+GitHub Pages搭建个人博客</div>
     </a>
   
@@ -273,7 +282,7 @@
     
       <div class="widget" id="toc-widget-fixed">
       
-        <strong class="toc-title">Content</strong>
+        <strong class="toc-title">文章目录</strong>
         <div class="toc-widget-list">
               <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#盒模型-Box-model"><span class="toc-number">1.</span> <span class="toc-text">盒模型(Box model)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#包含块-Containing-blocks"><span class="toc-number">2.</span> <span class="toc-text">包含块(Containing blocks)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#块级元素和块盒-Block-level-elements-and-block-boxes"><span class="toc-number">3.</span> <span class="toc-text">块级元素和块盒(Block-level elements and block boxes)</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念"><span class="toc-number">3.1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名块盒"><span class="toc-number">3.2.</span> <span class="toc-text">匿名块盒</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#内联元素-inline-level-element-和内联盒-inline-box"><span class="toc-number">4.</span> <span class="toc-text">内联元素(inline-level element)和内联盒(inline box)</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念-1"><span class="toc-number">4.1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名内联盒"><span class="toc-number">4.2.</span> <span class="toc-text">匿名内联盒</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#BFC"><span class="toc-number">5.</span> <span class="toc-text">BFC</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#创建"><span class="toc-number">5.1.</span> <span class="toc-text">创建</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#特性"><span class="toc-number">5.2.</span> <span class="toc-text">特性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#应用"><span class="toc-number">5.3.</span> <span class="toc-text">应用</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#IFC"><span class="toc-number">6.</span> <span class="toc-text">IFC</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#特性-1"><span class="toc-number">6.1.</span> <span class="toc-text">特性</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">7.</span> <span class="toc-text">参考</span></a></li></ol>
           </div>
@@ -300,10 +309,10 @@
   <div class="outer">
     <div id="footer-left">
       &copy; 2014 - 2017 Zeigo&nbsp;|&nbsp;
-      Theme by <a href="https://github.com/giscafer/hexo-theme-cafe/" target="_blank">Cafe</a>
+      主题 <a href="https://github.com/giscafer/hexo-theme-cafe/" target="_blank">Cafe</a>
     </div>
      <div id="footer-right">
-      Contact&nbsp;|&nbsp;zjj1149@gmail.com
+      联系方式&nbsp;|&nbsp;zjj1149@gmail.com
     </div>
   </div>
 </footer>

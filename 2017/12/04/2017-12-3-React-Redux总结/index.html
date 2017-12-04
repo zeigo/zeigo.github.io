@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>React-Redux总结 | Zeigo&#39;s blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="react-redux学习的总结和源码的分析">
+<meta name="keywords" content="React,JavaScript,Redux">
+<meta property="og:type" content="article">
+<meta property="og:title" content="React-Redux总结">
+<meta property="og:url" content="http://zeigo.github.io/2017/12/04/2017-12-3-React-Redux总结/index.html">
+<meta property="og:site_name" content="Zeigo&#39;s blog">
+<meta property="og:description" content="react-redux学习的总结和源码的分析">
+<meta property="og:updated_time" content="2017-12-04T16:53:32.296Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="React-Redux总结">
+<meta name="twitter:description" content="react-redux学习的总结和源码的分析">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    
+  
+  <link rel="stylesheet" href="/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    
+    <div id="header-inner" class="inner">
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://zeigo.github.io"></form>
+      </div>
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/about">关于</a>
+        
+      </nav>
+      
+    </div>
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Zeigo&#39;s blog</a>
+      </h1>
+      
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-2017-12-3-React-Redux总结" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2017/12/04/2017-12-3-React-Redux总结/" class="article-date">
+  <time datetime="2017-12-04T09:52:19.000Z" itemprop="datePublished">2017-12-04</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/JavaScript/">JavaScript</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      React-Redux总结
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- Table of Contents -->
+        
+        <p>Redux的文档里<a href="https://redux.js.org/docs/introduction/PriorArt.html#elm" target="_blank" rel="noopener">提到参考了Elm的架构</a>，之前一直写<a href="elm-lang.org">Elm</a>，对Redux的东西接受的也比较快，这里主要讨论<code>react-redux</code>里的<code>Provider</code>，<code>connect</code>实现，探讨其中性能优化的部分。<br><a id="more"></a></p>
+<h2 id="基础"><a href="#基础" class="headerlink" title="基础"></a>基础</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> &#123; Provider, connect &#125; <span class="keyword">from</span> <span class="string">"react-redux"</span></span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th>Component 组件</th>
+<th>Presentational展示</th>
+<th>Container 容器</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据来源</td>
+<td>props</td>
+<td>store, ownProps</td>
+</tr>
+<tr>
+<td>修改数据</td>
+<td>props提供callback</td>
+<td>dispatch action</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Provider"><a href="#Provider" class="headerlink" title="Provider"></a>Provider</h2><p>传入store，只需渲染根组件时用<code>&lt;Provider /&gt;</code>，使所有容器组件可访问store，不必层层传递。</p>
+<h3 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> store = createStore(todoApp)</span><br><span class="line"></span><br><span class="line">render(</span><br><span class="line">  &lt;Provider store=&#123;store&#125;&gt;</span><br><span class="line">    &lt;App /&gt;</span><br><span class="line">  &lt;<span class="regexp">/Provider&gt;,</span></span><br><span class="line"><span class="regexp">  document.getElementById('root')</span></span><br><span class="line"><span class="regexp">)</span></span><br></pre></td></tr></table></figure>
+<h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><p>父组件通过<code>getChildContext()</code>向context中传值{ store: this.props.store }，而通过了contextType验证的子组件可以通过<code>this.context.store</code>拿到store。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Provider</span> <span class="keyword">extends</span> <span class="title">Component</span> </span>&#123;</span><br><span class="line">  getChildContext() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123; [storeKey]: <span class="keyword">this</span>[storeKey], [subscriptionKey]: <span class="literal">null</span> &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">constructor</span>(props, context) &#123;</span><br><span class="line">    <span class="keyword">super</span>(props, context)</span><br><span class="line">    <span class="keyword">this</span>[storeKey] = props.store</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    <span class="keyword">return</span> Children.only(<span class="keyword">this</span>.props.children)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Provider.childContextTypes = &#123;</span><br><span class="line">  [storeKey]: storeShape.isRequired,</span><br><span class="line">  [subscriptionKey]: subscriptionShape,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="createProvider"><a href="#createProvider" class="headerlink" title="createProvider"></a>createProvider</h3><p>允许控制store在context中的key值，存在多store才需要，同时<code>connect</code>的options也要设置相应的<code>storeKey</code>。但不推荐多store，比较鸡肋。。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> &#123; createProvider &#125; <span class="keyword">from</span> <span class="string">"react-redux"</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> MY_KEY = <span class="string">"mystore"</span></span><br><span class="line"><span class="keyword">const</span> Provider = createProvider(MY_KEY)</span><br><span class="line"></span><br><span class="line">&lt;Provider store=&#123;store&#125; /&gt;</span><br><span class="line"></span><br><span class="line">connect(.., .., .., &#123; <span class="attr">storeKey</span>: MY_KEY &#125;)(App)</span><br></pre></td></tr></table></figure>
+<h2 id="connect"><a href="#connect" class="headerlink" title="connect"></a>connect</h2><h3 id="简易实现"><a href="#简易实现" class="headerlink" title="简易实现"></a>简易实现</h3><p>不通过<code>connect</code>，直接context，contextTypes并注册监听。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">App</span> <span class="keyword">extends</span> <span class="title">Component</span> </span>&#123;</span><br><span class="line">  componentDidMount() &#123;</span><br><span class="line">    <span class="keyword">const</span> &#123; store &#125; = <span class="keyword">this</span>.context;</span><br><span class="line">    <span class="keyword">this</span>.unsubscribe = store.subscribe(<span class="function"><span class="params">()</span> =&gt;</span></span><br><span class="line">      <span class="keyword">this</span>.forceUpdate()</span><br><span class="line">    );</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    <span class="keyword">const</span> props = <span class="keyword">this</span>.props;</span><br><span class="line">    <span class="keyword">const</span> &#123; store &#125; = <span class="keyword">this</span>.context;</span><br><span class="line">    <span class="keyword">const</span> state = store.getState();</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">App.contextTypes = &#123;</span><br><span class="line">  store: PropTypes.object</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="使用-1"><a href="#使用-1" class="headerlink" title="使用"></a>使用</h3><p>形成容器组件使用<code>connnect()</code>而不是原生，连接React组件和store，以获得优化。主要两点作用：</p>
+<ol>
+<li><p>从context拿到store，进而得到<code>getState</code> <code>dispatch</code>;</p>
+</li>
+<li><p>监听store的state和容器组件ownProps，判定是否组合并重渲染，并实现优化。</p>
+</li>
+</ol>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> AppCtn = connect(</span><br><span class="line">  mapStateToProps,</span><br><span class="line">  mapDispatchToProps</span><br><span class="line">)(App)</span><br><span class="line"></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> AppCtn</span><br></pre></td></tr></table></figure>
+<h3 id="参数"><a href="#参数" class="headerlink" title="参数"></a>参数</h3><p><code>connect([mapStateToProps], [mapDispatchToProps], [mergeProps], [options])</code></p>
+<ol>
+<li><p>mapStateToProps(state, [ownProps]): stateProp: 设置该参数时，使该组件可以监听redux store。</p>
+</li>
+<li><p>mapDispatchToProps(dispatch, [ownProps]): dispatchProps: action creator，若省略，默认注入<code>dispatch</code>。</p>
+</li>
+<li><p>mergeProps(stateProps, dispatchProps, ownProps): props: 默认返回<code>Object.assign({}, ownProps, stateProps, dispatchProps)</code> 的结果，可用于将props绑定到action creator等，结果作为被包裹组件的props。</p>
+</li>
+<li><p>options(object)</p>
+</li>
+</ol>
+<ul>
+<li>pure(Boolean)</li>
+</ul>
+<p>如果为 true，当相关的state/props可能变化时，若经浅比较没变，不会重渲染或调用<code>mapStateToProps</code>，<code>mapDispatchToProps</code>，<code>mergeProps</code>等。默认值为 true。</p>
+<ul>
+<li>areStatesEqual(next, prev): bool(Function)</li>
+</ul>
+<p>用来比较store state的方法，默认值<code>strictEqual(===)</code>，当<code>mapStateToProps</code>操作代价大，而只与state一部分有关时可以使用。</p>
+<ul>
+<li>areOwnPropsEqual(Function)</li>
+</ul>
+<p>比较ownProps，默认<code>shallowEqual</code>。</p>
+<ul>
+<li>areStatePropsEqual(Function)</li>
+</ul>
+<p>比较<code>mapStateToProps</code>结果，默认<code>shallowEqual</code>。</p>
+<ul>
+<li>areMergedPropsEqual(Function)</li>
+</ul>
+<p>比较<code>mergeProps</code>结果，默认<code>shallowEqual</code>。</p>
+<ul>
+<li>storeKey(String)</li>
+</ul>
+<h2 id="shallowEqual实现"><a href="#shallowEqual实现" class="headerlink" title="shallowEqual实现"></a>shallowEqual实现</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> hasOwn = <span class="built_in">Object</span>.prototype.hasOwnProperty</span><br><span class="line"></span><br><span class="line"><span class="comment">//比较基本类型或同一个对象，Object.is()的polyfill</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">is</span>(<span class="params">x, y</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (x === y) &#123; <span class="comment">//is(+0, -0) === false</span></span><br><span class="line">    <span class="keyword">return</span> x !== <span class="number">0</span> || y !== <span class="number">0</span> || <span class="number">1</span> / x === <span class="number">1</span> / y</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123; <span class="comment">//is(NaN, NaN) === true</span></span><br><span class="line">    <span class="keyword">return</span> x !== x &amp;&amp; y !== y</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> <span class="function"><span class="keyword">function</span> <span class="title">shallowEqual</span>(<span class="params">objA, objB</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (is(objA, objB)) <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">//过滤不都是对象的情况</span></span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">typeof</span> objA !== <span class="string">'object'</span> || objA === <span class="literal">null</span> ||</span><br><span class="line">      <span class="keyword">typeof</span> objB !== <span class="string">'object'</span> || objB === <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">const</span> keysA = <span class="built_in">Object</span>.keys(objA)</span><br><span class="line">  <span class="keyword">const</span> keysB = <span class="built_in">Object</span>.keys(objB)</span><br><span class="line"></span><br><span class="line">  <span class="comment">//长度不同直接false</span></span><br><span class="line">  <span class="keyword">if</span> (keysA.length !== keysB.length) <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">//若B自身不含Akey的key，或都有该key，但is(va, vb)返回false时，返回false</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; keysA.length; i++) &#123;</span><br><span class="line">    <span class="keyword">if</span> (!hasOwn.call(objB, keysA[i]) ||</span><br><span class="line">        !is(objA[keysA[i]], objB[keysA[i]])) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可见对象比较最多只比较一层，无法精确比较嵌套对象。</p>
+<h2 id="简单的connect实现"><a href="#简单的connect实现" class="headerlink" title="简单的connect实现"></a>简单的connect实现</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> React, &#123; Component &#125; <span class="keyword">from</span> <span class="string">"react"</span></span><br><span class="line"><span class="keyword">import</span> PropTypes <span class="keyword">from</span> <span class="string">"prop-types"</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> connect = <span class="function">(<span class="params">mapStateToProps, mapDispatchToProps, mergeProps, options</span>) =&gt;</span> (App) =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> mergeProps = mergeProps || <span class="function">(<span class="params">(...args</span>) =&gt;</span> <span class="built_in">Object</span>.assign(&#123;&#125;, ...args))</span><br><span class="line"></span><br><span class="line">  <span class="class"><span class="keyword">class</span> <span class="title">Ctn</span> <span class="keyword">extends</span> <span class="title">Component</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> contextPtops = &#123;</span><br><span class="line">      store: PropTypes.object</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">constructor</span>() &#123;</span><br><span class="line">      <span class="keyword">super</span>()</span><br><span class="line">      <span class="keyword">this</span>.state = &#123;</span><br><span class="line">        allProps: &#123;&#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    updateAllProps() &#123;</span><br><span class="line">      <span class="keyword">const</span> &#123; store &#125; = <span class="keyword">this</span>.context</span><br><span class="line">      <span class="keyword">let</span> stateProps = mapStateToProps</span><br><span class="line">        ? mapStateToProps(store.getState(), <span class="keyword">this</span>.props)</span><br><span class="line">        : &#123;&#125; <span class="comment">// 防止 mapStateToProps 没有传入</span></span><br><span class="line">      <span class="keyword">let</span> dispatchProps = mapDispatchToProps</span><br><span class="line">        ? mapDispatchToProps(store.dispatch, <span class="keyword">this</span>.props)</span><br><span class="line">        : &#123;&#125; <span class="comment">// 防止 mapDispatchToProps 没有传入</span></span><br><span class="line">      <span class="keyword">let</span> newAllProps = &#123;</span><br><span class="line">        ...stateProps,</span><br><span class="line">        ...dispatchProps,</span><br><span class="line">        ...this.props</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">this</span>.setState(&#123; <span class="attr">allProps</span>: newAllProps &#125;)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    componentWillMount() &#123;</span><br><span class="line">      <span class="keyword">const</span> &#123; store &#125; = <span class="keyword">this</span>.context</span><br><span class="line">      updateAllProps()</span><br><span class="line">      <span class="keyword">if</span> (mapStateToProps) <span class="comment">//传入mapStateToProps时才监听</span></span><br><span class="line">        <span class="keyword">this</span>.unsubscribe = store.subscribe(<span class="function"><span class="params">()</span> =&gt;</span> <span class="keyword">this</span>.updateAllProps())</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    componentWillReceiveProps(nextProps) &#123;</span><br><span class="line">      shallowEqual(nextProps, <span class="keyword">this</span>.props) || <span class="keyword">this</span>.updateAllProps() <span class="comment">//ownProps改变才setState</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    shouldComponentUpdate(nextProps, nextState) &#123;</span><br><span class="line">      <span class="keyword">return</span> !shallowEqual(nextState.allProps, <span class="keyword">this</span>.state.allProps)</span><br><span class="line">      <span class="comment">//简单的优化，当state.allProps改变才update，才更新到子组件</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    componentWillUnmount() &#123;</span><br><span class="line">      <span class="keyword">this</span>.unsubscribe &amp;&amp; <span class="keyword">this</span>.unsubscribe()</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    render() &#123;</span><br><span class="line">      <span class="keyword">return</span> &lt;App &#123;...this.state.allProps&#125; /&gt;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  return Ctn</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>总的来说Redux的原理还是很简单的，它只是提供了一个状态管理的工具，而如何根据业务组织数据，做好性能优化才是重点。它借鉴了Elm的架构，但Elm这门函数式语言自带的数据不变性(Immutability)，纯函数，静态类型，模式匹配以及强大的类型组合是Redux实现不了的，需要自己实现。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://zeigo.github.io/2017/12/04/2017-12-3-React-Redux总结/" data-id="cjasfa7yz00036v971cvnzrcq" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/JavaScript/">JavaScript</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/React/">React</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Redux/">Redux</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+ <script src="/jquery/jquery.min.js"></script>
+  <div id="random_posts">
+    <h2>推荐文章</h2>
+    <div class="random_posts_ul">
+      <script>
+          var random_count =4
+          var site = {BASE_URI:'/'};
+          function load_random_posts(obj) {
+              var arr=site.posts;
+              if (!obj) return;
+              // var count = $(obj).attr('data-count') || 6;
+              for (var i, tmp, n = arr.length; n; i = Math.floor(Math.random() * n), tmp = arr[--n], arr[n] = arr[i], arr[i] = tmp);
+              arr = arr.slice(0, random_count);
+              var html = '<ul>';
+            
+              for(var j=0;j<arr.length;j++){
+                var item=arr[j];
+                html += '<li><strong>' + 
+                item.date + ':&nbsp;&nbsp;<a href="' + (site.BASE_URI+item.uri) + '">' + 
+                (item.title || item.uri) + '</a></strong>';
+                if(item.excerpt){
+                  html +='<div class="post-excerpt">'+item.excerpt+'</div>';
+                }
+                html +='</li>';
+                
+              }
+              $(obj).html(html + '</ul>');
+          }
+          $('.random_posts_ul').each(function () {
+              var c = this;
+              if (!site.posts || !site.posts.length){
+                  $.getJSON(site.BASE_URI + 'js/posts.js',function(json){site.posts = json;load_random_posts(c)});
+              } 
+               else{
+                load_random_posts(c);
+              }
+          });
+      </script>
+    </div>
+  </div>
+
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2017/11/27/2017-11-27-JavaScript单线程和事件循环/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">JavaScript单线程和事件循环</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+ 
+     
+  <div class="comments" id="comments">
+    
+     
+       
+       
+      
+      
+           <div id="gitment_comments"></div>
+    
+  </div>
+ 
+  
+
+</section>
+           
+    <aside id="sidebar">
+  
+    
+
+  
+    
+    <div class="widget-wrap">
+    
+      <div class="widget" id="toc-widget-fixed">
+      
+        <strong class="toc-title">文章目录</strong>
+        <div class="toc-widget-list">
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#基础"><span class="toc-number">1.</span> <span class="toc-text">基础</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Provider"><span class="toc-number">2.</span> <span class="toc-text">Provider</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#使用"><span class="toc-number">2.1.</span> <span class="toc-text">使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#原理"><span class="toc-number">2.2.</span> <span class="toc-text">原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#createProvider"><span class="toc-number">2.3.</span> <span class="toc-text">createProvider</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#connect"><span class="toc-number">3.</span> <span class="toc-text">connect</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#简易实现"><span class="toc-number">3.1.</span> <span class="toc-text">简易实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#使用-1"><span class="toc-number">3.2.</span> <span class="toc-text">使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#参数"><span class="toc-number">3.3.</span> <span class="toc-text">参数</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#shallowEqual实现"><span class="toc-number">4.</span> <span class="toc-text">shallowEqual实现</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#简单的connect实现"><span class="toc-number">5.</span> <span class="toc-text">简单的connect实现</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">6.</span> <span class="toc-text">总结</span></a></li></ol>
+          </div>
+      </div>
+    </div>
+
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+
+  
+</aside>
+
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-left">
+      &copy; 2014 - 2017 Zeigo&nbsp;|&nbsp;
+      主题 <a href="https://github.com/giscafer/hexo-theme-cafe/" target="_blank">Cafe</a>
+    </div>
+     <div id="footer-right">
+      联系方式&nbsp;|&nbsp;zjj1149@gmail.com
+    </div>
+  </div>
+</footer>
+ <script src="/jquery/jquery.min.js"></script>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/about" class="mobile-nav-link">关于</a>
+  
+</nav>
+    <img class="back-to-top-btn" src="/images/fly-to-top.png"/>
+<script>
+// Elevator script included on the page, already.
+window.onload = function() {
+  var elevator = new Elevator({
+    selector:'.back-to-top-btn',
+    element: document.querySelector('.back-to-top-btn'),
+    duration: 1000 // milliseconds
+  });
+}
+</script>
+      
+
+  
+
+  
+
+
+
+
+
+
+
+<!-- author:forvoid begin -->
+<!-- author:forvoid begin -->
+
+  <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+  <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script> 
+  <script>
+  var gitment = new Gitment({
+    // id: '页面 ID', // 可选。默认为 location.href
+    owner: 'zeigo',
+    repo: 'zeigo.github.io',
+    oauth: {
+    client_id: 'e082be8fdcfd8602e6f8',
+    client_secret: '6922cd82b1bcfde93141e086bff18656d32dfc58',
+    }
+  })
+  gitment.render(document.getElementById("gitment_comments"))
+</script>
+
+
+<!-- author:forvoid end -->
+
+<!-- author:forvoid end -->
+
+
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      })
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      })
+    </script>
+    <script type="text/javascript" src="https://cdn.rawgit.com/mathjax/MathJax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+ <script src="/js/is.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+<script src="/js/elevator.js"></script>
+  </div>
+</body>
+</html>

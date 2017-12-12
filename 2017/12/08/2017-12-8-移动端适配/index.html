@@ -12,7 +12,7 @@
 <meta property="og:url" content="http://zeigo.github.io/2017/12/08/2017-12-8-移动端适配/index.html">
 <meta property="og:site_name" content="Zeigo&#39;s blog">
 <meta property="og:description" content="移动端适配问题，viewport，device-width">
-<meta property="og:updated_time" content="2017-12-08T13:54:13.209Z">
+<meta property="og:updated_time" content="2017-12-12T06:15:28.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="移动端适配">
 <meta name="twitter:description" content="移动端适配问题，viewport，device-width">
@@ -94,38 +94,75 @@
         
         <p>以前还没有做过移动端的开发，看到一篇有关移动端适配的博文，记录一波以供参考。</p>
 <a id="more"></a>
-<h2 id="像素"><a href="#像素" class="headerlink" title="像素"></a>像素</h2><h3 id="设备像素"><a href="#设备像素" class="headerlink" title="设备像素"></a>设备像素</h3><p>屏幕的物理像素，固定不变。</p>
+<h2 id="像素"><a href="#像素" class="headerlink" title="像素"></a>像素</h2><h3 id="设备像素"><a href="#设备像素" class="headerlink" title="设备像素"></a>设备像素</h3><p>屏幕的物理像素，固定不变</p>
 <h3 id="CSS像素"><a href="#CSS像素" class="headerlink" title="CSS像素"></a>CSS像素</h3><p>一个CSS像素代表多少屏幕像素，由屏幕像素密度、缩放比例决定。</p>
 <h3 id="分辨率"><a href="#分辨率" class="headerlink" title="分辨率"></a>分辨率</h3><p>1136 x 640，屏幕垂直1136像素，水平640像素。</p>
-<h3 id="屏幕尺寸"><a href="#屏幕尺寸" class="headerlink" title="屏幕尺寸"></a>屏幕尺寸</h3><p>4英寸，屏幕对角线长度。</p>
+<h3 id="屏幕尺寸"><a href="#屏幕尺寸" class="headerlink" title="屏幕尺寸"></a>屏幕尺寸</h3><p>4英寸，屏幕对角线长度</p>
 <h2 id="视口"><a href="#视口" class="headerlink" title="视口"></a>视口</h2><p>桌面浏览器中，浏览器窗口就是约束你的CSS布局视口（又称初始包含块）。它使所有CSS百分比宽度推算的根源，它的作用是CSS布局限制了一个最大宽度，视口的宽度和浏览器窗口宽度一致。</p>
 <p>但是在移动端，情况有所不同。</p>
 <h3 id="布局视口"><a href="#布局视口" class="headerlink" title="布局视口"></a>布局视口</h3><p>layout viewport</p>
-<p>用于初始包含块、媒体查询，可由<code>document.documentElement.clientWidth/clientHeight</code>得到。</p>
+<p>用于初始包含块、媒体查询，可由<code>document.documentElement.clientWidth/clientHeight</code>得到，即html元素尺寸。</p>
+<p>对桌面浏览器，即窗口物理尺寸。</p>
 <figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">@<span class="keyword">media</span> (min-width: <span class="number">700px</span>)&#123;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>手机端布局视口不与屏幕相关联，由浏览器设定，一般980px，此时屏幕宽度的范围内可以显示980CSS像素宽度的内容。</p>
+<p>对不设<code>viewport</code>的手机端，布局视口不与屏幕相关联，由浏览器设定，一般980px。</p>
 <h3 id="视觉视口"><a href="#视觉视口" class="headerlink" title="视觉视口"></a>视觉视口</h3><p>visual viewport</p>
-<p>视觉视口是用户正在看到的网页的区域，大小是屏幕中CSS像素的数量。</p>
-<p><code>window.innerWidth/Height</code>返回视觉视口的尺寸</p>
+<p>视觉视口是用户正在看到的网页的区域，大小是屏幕显示的CSS像素的数量。</p>
+<p><code>window.innerWidth/Height</code>返回视觉视口的尺寸。</p>
+<p>对桌面浏览器，即窗口物理尺寸。在body内容没有超出时，手机端由<code>document.body.clientWidth</code>决定，从而尽量使窗口可以显示body全部内容，对不设<code>viewport</code>的有980px，1440px两档，而设<code>viewport</code>后，直接等于body尺寸。</p>
 <h3 id="理想视口"><a href="#理想视口" class="headerlink" title="理想视口"></a>理想视口</h3><p>ideal viewport</p>
 <p>浏览器规定了理想视口尺寸，即屏幕宽度，以下可设置布局视口为理想视口尺寸。</p>
 <figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">"viewport"</span> <span class="attr">content</span>=<span class="string">"width=device-width"</span>&gt;</span></span><br></pre></td></tr></table></figure>
 <p><code>screen.width/height</code>返回理想视口的尺寸。</p>
 <h2 id="缩放"><a href="#缩放" class="headerlink" title="缩放"></a>缩放</h2><h3 id="影响"><a href="#影响" class="headerlink" title="影响"></a>影响</h3><p>缩放的是CSS像素的大小，放大后，一个CSS像素跨域更多物理像素。</p>
-<p>缩放影响视觉视口的尺寸，放大后，能看到的CSS像素减少，但注意<code>window.innerWidth</code> <code>document.documentElement.clientWidth</code>不会随用户缩放改变，只会在initial-scale改变时调整。</p>
-<h3 id="缩放比例"><a href="#缩放比例" class="headerlink" title="缩放比例"></a>缩放比例</h3><p>zoom-level = screen.width / window.innerWidth</p>
+<p>用户缩放时，各数值都不会变，只会在initial-scale改变时调整。</p>
+<h3 id="缩放比例"><a href="#缩放比例" class="headerlink" title="缩放比例"></a>缩放比例</h3><p><code>zoom-level = screen.width / window.innerWidth</code></p>
 <p>放大时，能显示的范围更小。</p>
 <h3 id="禁止缩放"><a href="#禁止缩放" class="headerlink" title="禁止缩放"></a>禁止缩放</h3><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">"viewport"</span> <span class="attr">content</span>=<span class="string">"user-scalable=no"</span>&gt;</span></span><br></pre></td></tr></table></figure>
 <h3 id="设置缩放"><a href="#设置缩放" class="headerlink" title="设置缩放"></a>设置缩放</h3><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">"viewport"</span> <span class="attr">content</span>=<span class="string">"initial-scale=1"</span>&gt;</span></span><br></pre></td></tr></table></figure>
 <p>同时也会将布局视口的尺寸设置为缩放的尺寸，所以initial-scale=1与width=device-width的效果是一样的。</p>
 <h2 id="最终结果"><a href="#最终结果" class="headerlink" title="最终结果"></a>最终结果</h2><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">"viewport"</span> <span class="attr">content</span>=<span class="string">"width=device-width,initial-scale=1"</span>&gt;</span></span><br></pre></td></tr></table></figure>
 <p>解决兼容性。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><table>
+<thead>
+<tr>
+<th>种类</th>
+<th>屏幕尺寸</th>
+<th>html</th>
+<th>body(150%)</th>
+<th>window</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>桌面</td>
+<td>980</td>
+<td>980</td>
+<td>1470</td>
+<td>980</td>
+</tr>
+<tr>
+<td>移动</td>
+<td>360</td>
+<td>980</td>
+<td>1470</td>
+<td>1440</td>
+</tr>
+<tr>
+<td>移动（viewport）</td>
+<td>360</td>
+<td>360</td>
+<td>540</td>
+<td>540</td>
+</tr>
+</tbody>
+</table>
+<p>总之，桌面端布局视口(html)，视觉视口(window)都等于屏幕宽度；移动端不设viewport时，html有固定值980，window有980，1440，显示尽可能多内容；设viewport时，html与屏幕相等，window与内容相同。</p>
 <h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p>1.<a href="https://segmentfault.com/a/1190000004336869" target="_blank" rel="noopener">移动端适配方案（上）</a></p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://zeigo.github.io/2017/12/08/2017-12-8-移动端适配/" data-id="cjaxz2asf0006qi97w64ygfcb" class="article-share-link">Share</a>
+      <a data-url="http://zeigo.github.io/2017/12/08/2017-12-8-移动端适配/" data-id="cjb38guvy0005bl975q4tbtp2" class="article-share-link">Share</a>
       
       
       
@@ -218,7 +255,7 @@
       
         <strong class="toc-title">Content</strong>
         <div class="toc-widget-list">
-              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#像素"><span class="toc-number">1.</span> <span class="toc-text">像素</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#设备像素"><span class="toc-number">1.1.</span> <span class="toc-text">设备像素</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CSS像素"><span class="toc-number">1.2.</span> <span class="toc-text">CSS像素</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#分辨率"><span class="toc-number">1.3.</span> <span class="toc-text">分辨率</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#屏幕尺寸"><span class="toc-number">1.4.</span> <span class="toc-text">屏幕尺寸</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#视口"><span class="toc-number">2.</span> <span class="toc-text">视口</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#布局视口"><span class="toc-number">2.1.</span> <span class="toc-text">布局视口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#视觉视口"><span class="toc-number">2.2.</span> <span class="toc-text">视觉视口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#理想视口"><span class="toc-number">2.3.</span> <span class="toc-text">理想视口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#缩放"><span class="toc-number">3.</span> <span class="toc-text">缩放</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#影响"><span class="toc-number">3.1.</span> <span class="toc-text">影响</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#缩放比例"><span class="toc-number">3.2.</span> <span class="toc-text">缩放比例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#禁止缩放"><span class="toc-number">3.3.</span> <span class="toc-text">禁止缩放</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#设置缩放"><span class="toc-number">3.4.</span> <span class="toc-text">设置缩放</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#最终结果"><span class="toc-number">4.</span> <span class="toc-text">最终结果</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考"><span class="toc-number">5.</span> <span class="toc-text">参考</span></a></li></ol>
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#像素"><span class="toc-number">1.</span> <span class="toc-text">像素</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#设备像素"><span class="toc-number">1.1.</span> <span class="toc-text">设备像素</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CSS像素"><span class="toc-number">1.2.</span> <span class="toc-text">CSS像素</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#分辨率"><span class="toc-number">1.3.</span> <span class="toc-text">分辨率</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#屏幕尺寸"><span class="toc-number">1.4.</span> <span class="toc-text">屏幕尺寸</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#视口"><span class="toc-number">2.</span> <span class="toc-text">视口</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#布局视口"><span class="toc-number">2.1.</span> <span class="toc-text">布局视口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#视觉视口"><span class="toc-number">2.2.</span> <span class="toc-text">视觉视口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#理想视口"><span class="toc-number">2.3.</span> <span class="toc-text">理想视口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#缩放"><span class="toc-number">3.</span> <span class="toc-text">缩放</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#影响"><span class="toc-number">3.1.</span> <span class="toc-text">影响</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#缩放比例"><span class="toc-number">3.2.</span> <span class="toc-text">缩放比例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#禁止缩放"><span class="toc-number">3.3.</span> <span class="toc-text">禁止缩放</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#设置缩放"><span class="toc-number">3.4.</span> <span class="toc-text">设置缩放</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#最终结果"><span class="toc-number">4.</span> <span class="toc-text">最终结果</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">5.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考"><span class="toc-number">6.</span> <span class="toc-text">参考</span></a></li></ol>
           </div>
       </div>
     </div>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>React事件系统 | Zeigo&#39;s blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="React事件系统的分析，SyntheticEvent">
+<meta name="keywords" content="JavaScript,React">
+<meta property="og:type" content="article">
+<meta property="og:title" content="React事件系统">
+<meta property="og:url" content="http://zeigo.github.io/2018/01/20/2018-1-20-React事件系统/index.html">
+<meta property="og:site_name" content="Zeigo&#39;s blog">
+<meta property="og:description" content="React事件系统的分析，SyntheticEvent">
+<meta property="og:updated_time" content="2018-01-20T04:55:31.299Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="React事件系统">
+<meta name="twitter:description" content="React事件系统的分析，SyntheticEvent">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    
+  
+  <link rel="stylesheet" href="/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    
+    <div id="header-inner" class="inner">
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://zeigo.github.io"></form>
+      </div>
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/about">关于</a>
+        
+      </nav>
+      
+    </div>
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Zeigo&#39;s blog</a>
+      </h1>
+      
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-2018-1-20-React事件系统" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/20/2018-1-20-React事件系统/" class="article-date">
+  <time datetime="2018-01-20T04:42:48.000Z" itemprop="datePublished">2018-01-20</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/JavaScript/">JavaScript</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      React事件系统
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- Table of Contents -->
+        
+        <p>挺久没有写博客了，最近一直在研究React的源码，对整个流程有了大概的了解，这里先总结下React事件系统的实现，之后还会对Fiber架构有个总结。</p>
+<a id="more"></a>
+<h2 id="DOM原生事件"><a href="#DOM原生事件" class="headerlink" title="DOM原生事件"></a>DOM原生事件</h2><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">div</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">button</span>&gt;</span>click<span class="tag">&lt;/<span class="name">button</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>我们知道，当点击button时，会生成一个事件对象，经捕获（capture）document -&gt; div -&gt; button，冒泡（bubble）button -&gt; div -&gt; document，如果路径上的元素在对应阶段注册了回调，则执行回调，其中可能会preventDefault或stopPropagation，这个过程需要兼容不同的浏览器。</p>
+<p>如果每个元素都注册回调，对性能的影响会很大，而解决的方法就是事件委托（event delegation)。</p>
+<p>React事件系统主要解决的就是兼容问题和事件委托。</p>
+<h2 id="合成事件"><a href="#合成事件" class="headerlink" title="合成事件"></a>合成事件</h2><p>出于兼容性考虑，React有自己实现的合成事件（SyntheticEvent），这也是React事件系统的基础。</p>
+<h3 id="重要属性"><a href="#重要属性" class="headerlink" title="重要属性"></a>重要属性</h3><p>nativeEvent: 对应的原生事件</p>
+<p>_targetInst: target对应的fiber</p>
+<p>dispatchConfig: 该topLevel(topClick)对应各阶段的属性（onClick, onClickCaptured）</p>
+<p>_dispatchListeners: 按事件流抓取的回调序列</p>
+<p>_dispatchInstances: 回调对应的fiber序列</p>
+<h3 id="扩展性"><a href="#扩展性" class="headerlink" title="扩展性"></a>扩展性</h3><p>DOM的事件对象中，根据事件类型，属性中有部分是共有的，比如target、type；其他是特有的，如MouseEvent的clientX等。为了可扩展性，React实现了类的Interface，当实例化的时候，会根据Interface把nativeEvent对应的属性赋值到实例里，并提供了extend方法来扩展Interface，实现继承。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">SyntheticEvent.Interface = &#123;</span><br><span class="line">  type: <span class="literal">null</span>,</span><br><span class="line">  defaultPrevented: <span class="literal">null</span>,</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">SyntheticEvent</span>(<span class="params">dispatchConfig, targetInst, nativeEvent, nativeEventTarget</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">  <span class="keyword">const</span> Interface = <span class="keyword">this</span>.constructor.Interface;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">const</span> propName <span class="keyword">in</span> Interface) &#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">this</span>[propName] = nativeEvent[propName];</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">SyntheticEvent.extend = <span class="function"><span class="keyword">function</span>(<span class="params">Interface</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">const</span> Super = <span class="keyword">this</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">const</span> E = <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;&#125;;</span><br><span class="line">  E.prototype = Super.prototype;</span><br><span class="line">  <span class="keyword">const</span> prototype = <span class="keyword">new</span> E();</span><br><span class="line">  <span class="comment">// 类似 prototype = Object.create(Super.prototype)</span></span><br><span class="line">  <span class="function"><span class="keyword">function</span> <span class="title">Class</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Super.apply(<span class="keyword">this</span>, <span class="built_in">arguments</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">Object</span>.assign(prototype, Class.prototype);</span><br><span class="line">  Class.prototype = prototype;</span><br><span class="line">  Class.prototype.constructor = Class;</span><br><span class="line">  <span class="comment">// 寄生组合式继承</span></span><br><span class="line">  Class.Interface = <span class="built_in">Object</span>.assign(&#123;&#125;, Super.Interface, Interface);</span><br><span class="line">  Class.extend = Super.extend;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> Class;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">SyntheticUIEvent = SyntheticEvent.extend(&#123;</span><br><span class="line">  view: <span class="literal">null</span>,</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">&#125;)</span><br><span class="line">SyntheticMouseEvent = SyntheticUIEvent.extend(&#123;</span><br><span class="line">  clientX: <span class="literal">null</span>,</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<h3 id="原型方法"><a href="#原型方法" class="headerlink" title="原型方法"></a>原型方法</h3><p>实现了兼容的preventDefault和stopPropagation，通过自定义的isPropagationStopped决定是否执行之后的回调。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Object</span>.assign(SyntheticEvent.prototype, &#123;</span><br><span class="line">  preventDefault: <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.defaultPrevented = <span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">const</span> event = <span class="keyword">this</span>.nativeEvent;</span><br><span class="line">    <span class="keyword">if</span> (!event) &#123;</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (event.preventDefault) &#123;</span><br><span class="line">      event.preventDefault();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="keyword">typeof</span> event.returnValue !== <span class="string">'unknown'</span>) &#123;</span><br><span class="line">      event.returnValue = <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.isDefaultPrevented = emptyFunction.thatReturnsTrue;</span><br><span class="line">  &#125;,</span><br><span class="line"></span><br><span class="line">  stopPropagation: <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> event = <span class="keyword">this</span>.nativeEvent;</span><br><span class="line">    <span class="keyword">if</span> (!event) &#123;</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (event.stopPropagation) &#123;</span><br><span class="line">      event.stopPropagation();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="keyword">typeof</span> event.cancelBubble !== <span class="string">'unknown'</span>) &#123;</span><br><span class="line">      event.cancelBubble = <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">this</span>.isPropagationStopped = emptyFunction.thatReturnsTrue;</span><br><span class="line">  &#125;,</span><br></pre></td></tr></table></figure>
+<h3 id="对象池"><a href="#对象池" class="headerlink" title="对象池"></a>对象池</h3><p>为了减少GC负担，合成事件使用了对象池，新建对象时会从对象池中取实例再赋值，使用后属性都重置再放入池中。</p>
+<h2 id="注册事件"><a href="#注册事件" class="headerlink" title="注册事件"></a>注册事件</h2><p>React中的事件回调不绑定在实际的DOM元素中，我们知道React提供了更高的一层Fiber抽象，而回调就包含在Fiber的props中（如<code>{onClick: f()}</code>）。当在根据Fiber初始化DOM元素(setInitialDOMProperties)时，如果发现有prop为onClick，则会将<code>dispatchEvent.bind(null, &quot;topClick&quot;)</code>注册到document，使document开始监听click事件。</p>
+<p>需要注意的是，document只起监听分发的作用，本身与回调是解耦的。监听到click事件后，在<code>dispatchEvent</code>的时候才开始抓取对应的回调，回调始终与DOM元素抽象出的fiber绑定，这样fiber消失时，回调也会消失。这也符合React的设计原则，即在消耗大的DOM元素上抽象出轻量化的fiber，以提高最终的性能。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">trapBubbledEvent</span>(<span class="params">topLevelType, baseName, element</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (!element) <span class="keyword">return</span></span><br><span class="line">  EventListener.listen(element, baseName, dispatchEvent.bind(<span class="literal">null</span>, topLevelType))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> EventListener = &#123;</span><br><span class="line">  listen(target, eventType, callback) &#123;</span><br><span class="line">    <span class="keyword">if</span> (target.addEventListener) &#123;</span><br><span class="line">      target.addEventListener(eventType, callback, <span class="literal">false</span>)</span><br><span class="line">      <span class="keyword">return</span> &#123;</span><br><span class="line">        remove() &#123;</span><br><span class="line">          target.removeEventListener(eventType, callback, <span class="literal">false</span>)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (target.attachEvent) &#123;</span><br><span class="line">      target.attachEvent(<span class="string">"on"</span> + eventType, callback)</span><br><span class="line">      <span class="keyword">return</span> &#123;</span><br><span class="line">        remove() &#123;</span><br><span class="line">          target.detachEvent(<span class="string">"on"</span> + eventType, callback)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="抓取事件"><a href="#抓取事件" class="headerlink" title="抓取事件"></a>抓取事件</h2><p>当document在冒泡阶段拿到nativeEvent，实际上事件流已经接近结束了。而React模拟DOM实现了自己的事件流来抓取事件并依次执行回调。</p>
+<p>针对不同的事件，React有不同的plugin来得到回调。最普遍的SimplePlugin先得到从target到React容器的路径中DOM元素对应的fiber序列，再模拟捕获、冒泡进行两次遍历，分别寻找onClickCaptured, onClick属性，将得到的回调放入合成事件的_dispatchListeners中。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> SimpleEventPlugin = &#123;</span><br><span class="line">  extractEvents(topLevelType, targetInst, nativeEvent, nativeEventTarget) &#123;</span><br><span class="line">    <span class="keyword">var</span> dispatchConfig = topLevelTypeToDispatchConfig[topLevelType]</span><br><span class="line">    <span class="keyword">if</span> (!dispatchConfig) <span class="keyword">return</span> <span class="literal">null</span></span><br><span class="line">    <span class="keyword">var</span> EventConstructor</span><br><span class="line">    <span class="keyword">switch</span> (topLevelType) &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="string">"topClick"</span>:</span><br><span class="line">        EventConstructor = SyntheticMouseEvent</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// pooled</span></span><br><span class="line">    <span class="keyword">var</span> event = EventConstructor.getPooled(dispatchConfig, targetInst, nativeEvent, nativeEventTarget)</span><br><span class="line">    traverseTwoPhase(targetInst, event)</span><br><span class="line">    <span class="keyword">return</span> event</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 第一遍从上往下找onClickCaptured，第二遍从下往上找onClick</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">traverseTwoPhase</span>(<span class="params">inst, event</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">var</span> path = [] <span class="comment">// button fiber, div fiber</span></span><br><span class="line">  <span class="keyword">while</span> (inst) &#123;</span><br><span class="line">    <span class="keyword">if</span> (inst.tag === HostComponent)</span><br><span class="line">      path.push(inst)</span><br><span class="line">    inst = inst.return</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">var</span> i, len = path.length</span><br><span class="line">  <span class="keyword">for</span> (i = len - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</span><br><span class="line">    accumulateDispatches(path[i], event, <span class="string">"captured"</span>)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; len; i++) &#123;</span><br><span class="line">    accumulateDispatches(path[i], event, <span class="string">"bubbled"</span>)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 找到phase对应的registrationName，找inst对应的prop</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">accumulateDispatches</span>(<span class="params">inst, event, phase</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">var</span> registrationName = event.dispatchConfig.phasedRegistrationNames[phase]</span><br><span class="line">  <span class="comment">// "onClick" "onClickCaptured"</span></span><br><span class="line">  <span class="keyword">var</span> listener = getListener(inst, registrationName)</span><br><span class="line">  <span class="comment">// 得到fiber对应属性名的回调</span></span><br><span class="line">  <span class="keyword">if</span> (listener) &#123;</span><br><span class="line">    event._dispatchListeners = accumulateInto(event._dispatchListeners, listener)</span><br><span class="line">    event._dispatchInstances = accumulateInto(event._dispatchInstances, inst)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="执行回调"><a href="#执行回调" class="headerlink" title="执行回调"></a>执行回调</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// simulated用于测试，这里意义不大</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">executeDispatchesInOrder</span>(<span class="params">event, simulated</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">const</span> dispatchListeners = event._dispatchListeners;</span><br><span class="line">  <span class="keyword">const</span> dispatchInstances = event._dispatchInstances;</span><br><span class="line">  <span class="keyword">if</span> (<span class="built_in">Array</span>.isArray(dispatchListeners)) &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; dispatchListeners.length; i++) &#123;</span><br><span class="line">      <span class="comment">// 如果之前的阶段执行了e.stopPropagation()，之后的回调就不会再执行</span></span><br><span class="line">      <span class="keyword">if</span> (event.isPropagationStopped()) &#123;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      executeDispatch(</span><br><span class="line">        event,</span><br><span class="line">        simulated,</span><br><span class="line">        dispatchListeners[i],</span><br><span class="line">        dispatchInstances[i],</span><br><span class="line">      );</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (dispatchListeners) &#123;</span><br><span class="line">    executeDispatch(event, simulated, dispatchListeners, dispatchInstances);</span><br><span class="line">  &#125;</span><br><span class="line">  event._dispatchListeners = <span class="literal">null</span>;</span><br><span class="line">  event._dispatchInstances = <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 简化的执行单一回调</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">executeDispatch</span>(<span class="params">event, simulated, listener, inst</span>) </span>&#123;</span><br><span class="line">  event.currentTarget = inst.stateNode; <span class="comment">// 从fiber得到对应的DOM元素</span></span><br><span class="line">  listener.call(<span class="literal">undefined</span>, event)</span><br><span class="line">  <span class="comment">// 从这里可以看出，如果没有特定bind或箭头函数，this为undefined</span></span><br><span class="line">  event.currentTarget = <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="补充"><a href="#补充" class="headerlink" title="补充"></a>补充</h2><p>除了SimpleEventPlugin，React中还有其他Plugin来处理不同的事件，比如React针对input/select/textarea实现的特殊的onChange，需要ChangeEventPlugin来处理。另外还有特殊的topLevelType，这是对于浏览器特定事件的处理，比如transitionEnd, webkitTransitionEnd, MozTransitionEnd和oTransitionEnd都会集合为topAnimationEnd。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ol>
+<li><p><a href="https://levelup.gitconnected.com/how-exactly-does-react-handles-events-71e8b5e359f2" target="_blank" rel="noopener">The React and React Native Event System Explained: A Harmonious Coexistence</a></p>
+</li>
+<li><p><a href="https://github.com/facebook/react" target="_blank" rel="noopener">React源码</a></p>
+</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://zeigo.github.io/2018/01/20/2018-1-20-React事件系统/" data-id="cjcmvhicj00053m97gz17p0ne" class="article-share-link">Share</a>
+      
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/JavaScript/">JavaScript</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/React/">React</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+ <script src="/jquery/jquery.min.js"></script>
+  <div id="random_posts">
+    <h2>Recommended Posts</h2>
+    <div class="random_posts_ul">
+      <script>
+          var random_count =4
+          var site = {BASE_URI:'/'};
+          function load_random_posts(obj) {
+              var arr=site.posts;
+              if (!obj) return;
+              // var count = $(obj).attr('data-count') || 6;
+              for (var i, tmp, n = arr.length; n; i = Math.floor(Math.random() * n), tmp = arr[--n], arr[n] = arr[i], arr[i] = tmp);
+              arr = arr.slice(0, random_count);
+              var html = '<ul>';
+            
+              for(var j=0;j<arr.length;j++){
+                var item=arr[j];
+                html += '<li><strong>' + 
+                item.date + ':&nbsp;&nbsp;<a href="' + (site.BASE_URI+item.uri) + '">' + 
+                (item.title || item.uri) + '</a></strong>';
+                if(item.excerpt){
+                  html +='<div class="post-excerpt">'+item.excerpt+'</div>';
+                }
+                html +='</li>';
+                
+              }
+              $(obj).html(html + '</ul>');
+          }
+          $('.random_posts_ul').each(function () {
+              var c = this;
+              if (!site.posts || !site.posts.length){
+                  $.getJSON(site.BASE_URI + 'js/posts.js',function(json){site.posts = json;load_random_posts(c)});
+              } 
+               else{
+                load_random_posts(c);
+              }
+          });
+      </script>
+    </div>
+  </div>
+
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2017/12/08/2017-12-8-移动端适配/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">移动端适配</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+ 
+     
+  <div class="comments" id="comments">
+    
+     
+       
+       
+      
+      
+           <div id="gitment_comments"></div>
+    
+  </div>
+ 
+  
+
+</section>
+           
+    <aside id="sidebar">
+  
+    
+
+  
+    
+    <div class="widget-wrap">
+    
+      <div class="widget" id="toc-widget-fixed">
+      
+        <strong class="toc-title">Content</strong>
+        <div class="toc-widget-list">
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#DOM原生事件"><span class="toc-number">1.</span> <span class="toc-text">DOM原生事件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#合成事件"><span class="toc-number">2.</span> <span class="toc-text">合成事件</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#重要属性"><span class="toc-number">2.1.</span> <span class="toc-text">重要属性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#扩展性"><span class="toc-number">2.2.</span> <span class="toc-text">扩展性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#原型方法"><span class="toc-number">2.3.</span> <span class="toc-text">原型方法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#对象池"><span class="toc-number">2.4.</span> <span class="toc-text">对象池</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#注册事件"><span class="toc-number">3.</span> <span class="toc-text">注册事件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#抓取事件"><span class="toc-number">4.</span> <span class="toc-text">抓取事件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#执行回调"><span class="toc-number">5.</span> <span class="toc-text">执行回调</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#补充"><span class="toc-number">6.</span> <span class="toc-text">补充</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考"><span class="toc-number">7.</span> <span class="toc-text">参考</span></a></li></ol>
+          </div>
+      </div>
+    </div>
+
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+
+  
+</aside>
+
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-left">
+      &copy; 2014 - 2018 Zeigo&nbsp;|&nbsp;
+      Theme by <a href="https://github.com/giscafer/hexo-theme-cafe/" target="_blank">Cafe</a>
+    </div>
+     <div id="footer-right">
+      Contact&nbsp;|&nbsp;zjj1149@gmail.com
+    </div>
+  </div>
+</footer>
+ <script src="/jquery/jquery.min.js"></script>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/about" class="mobile-nav-link">关于</a>
+  
+</nav>
+    <img class="back-to-top-btn" src="/images/fly-to-top.png"/>
+<script>
+// Elevator script included on the page, already.
+window.onload = function() {
+  var elevator = new Elevator({
+    selector:'.back-to-top-btn',
+    element: document.querySelector('.back-to-top-btn'),
+    duration: 1000 // milliseconds
+  });
+}
+</script>
+      
+
+  
+
+  
+
+
+
+
+
+
+
+<!-- author:forvoid begin -->
+<!-- author:forvoid begin -->
+
+  <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+  <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script> 
+  <script>
+  var gitment = new Gitment({
+    // id: '页面 ID', // 可选。默认为 location.href
+    owner: 'zeigo',
+    repo: 'zeigo.github.io',
+    oauth: {
+    client_id: 'e082be8fdcfd8602e6f8',
+    client_secret: '6922cd82b1bcfde93141e086bff18656d32dfc58',
+    }
+  })
+  gitment.render(document.getElementById("gitment_comments"))
+</script>
+
+
+<!-- author:forvoid end -->
+
+<!-- author:forvoid end -->
+
+
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      })
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      })
+    </script>
+    <script type="text/javascript" src="https://cdn.rawgit.com/mathjax/MathJax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+ <script src="/js/is.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+<script src="/js/elevator.js"></script>
+  </div>
+</body>
+</html>

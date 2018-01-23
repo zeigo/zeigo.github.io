@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>React基于key的重排算法 | Zeigo&#39;s blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="React基于key的重排算法，diff virtual dom">
+<meta name="keywords" content="JavaScript,React">
+<meta property="og:type" content="article">
+<meta property="og:title" content="React基于key的重排算法">
+<meta property="og:url" content="http://zeigo.github.io/2018/01/23/2018-1-23-React基于key的重排算法/index.html">
+<meta property="og:site_name" content="Zeigo&#39;s blog">
+<meta property="og:description" content="React基于key的重排算法，diff virtual dom">
+<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E6%A0%87%E8%AE%B0.png">
+<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E7%A7%BB%E5%8A%A8.png">
+<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E5%AE%9E%E7%8E%B0.png">
+<meta property="og:updated_time" content="2018-01-23T08:02:44.665Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="React基于key的重排算法">
+<meta name="twitter:description" content="React基于key的重排算法，diff virtual dom">
+<meta name="twitter:image" content="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E6%A0%87%E8%AE%B0.png">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    
+  
+  <link rel="stylesheet" href="/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    
+    <div id="header-inner" class="inner">
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://zeigo.github.io"></form>
+      </div>
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/about">关于</a>
+        
+      </nav>
+      
+    </div>
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Zeigo&#39;s blog</a>
+      </h1>
+      
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-2018-1-23-React基于key的重排算法" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/23/2018-1-23-React基于key的重排算法/" class="article-date">
+  <time datetime="2018-01-23T07:55:55.000Z" itemprop="datePublished">2018-01-23</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/JavaScript/">JavaScript</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      React基于key的重排算法
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- Table of Contents -->
+        
+        <p>我们知道，React在更新视图时，会比较新旧树的节点，计算出差异，然后根据差异来进行修改。对于同一层级的子节点，如果按顺序依次比较，发现不同则删去原有的，插入新的。这样虽然可行，但如果这一层只是更换了顺序，那么频繁地删除、插入节点，效率会很低。为了提高子元素对比的性能，React使用了基于key的算法，能够更好地复用已有的节点。</p>
+<a id="more"></a>
+<p>这里只介绍其实现思路，不展示具体的源代码。</p>
+<h2 id="简化模型"><a href="#简化模型" class="headerlink" title="简化模型"></a>简化模型</h2><p>假如有5个人已经排好了队，我们按顺序标为1，2，3，4，5号。现在要重新排为3，2，1，5，4，那么怎样有一个标准的方法重排呢？</p>
+<p>React的算法分为两步，先标记出需要移动的元素，再按一定的标准移动。</p>
+<h3 id="标记"><a href="#标记" class="headerlink" title="标记"></a>标记</h3><p>第一步：根据新队列的顺序对元素遍历，如果新队列中未来在它左边的元素都已经在它左边，那么它可以不移动。</p>
+<ol>
+<li><p>我们从3开始，3未来左边没有元素，所以3不用移动，而对于新队列3之后的元素，想要不移动，它原来的位置肯定要大于3，3成为第一个定位的标准；</p>
+</li>
+<li><p>2 &lt; 3，标记为要移动；</p>
+</li>
+<li><p>1 &lt; 3，标记为要移动；</p>
+</li>
+<li><p>5 &gt; 3，不用移动，并成为新的定位标准；</p>
+</li>
+<li><p>4 &lt; 5，标记为要移动。</p>
+</li>
+</ol>
+<p>标记结果如图：</p>
+<p><img src="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E6%A0%87%E8%AE%B0.png" alt=""></p>
+<h3 id="移动"><a href="#移动" class="headerlink" title="移动"></a>移动</h3><p>我们确定了固定和移动的元素，那么具体要如何以固定元素为参照来移动呢？移动DOM元素的方法有insertBefore、appendChild，这里就要用到这两种方法。</p>
+<p>第二步：同样按新队列的顺序遍历，寻找之后第一个固定的元素。如果有，就insertBefore；没有就appendChild到最后。</p>
+<p>移动过程如图：</p>
+<p><img src="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E7%A7%BB%E5%8A%A8.png" alt=""></p>
+<h2 id="实际实现"><a href="#实际实现" class="headerlink" title="实际实现"></a>实际实现</h2><p>React不会一开始上来就尝试重排，而是按顺序依次比较，key值匹配时（包括都为null的情况），会一直持续下去。停止的原因三种：</p>
+<ol>
+<li><p>原来的节点不够了，这时新的多余的节点都直接插入；</p>
+</li>
+<li><p>新的节点不够了，这时原有多余的节点都删除；</p>
+</li>
+<li><p>出现key值不匹配时，开始重排。</p>
+</li>
+</ol>
+<p>三种情况如下：</p>
+<p><img src="http://p02ojz1i2.bkt.clouddn.com/20180123-key%E5%AE%9E%E7%8E%B0.png" alt=""></p>
+<p>React会将旧节点根据key或者index存入Map结构中，然后遍历新节点，根据新节点的key或index在Map中寻找旧节点。如果没找到，证明这是一个全新节点，需要插入；如果找到了，则按之前的重排算法确定是否移动，并从Map中删去旧节点。当遍历完成后，Map中剩余的则是需要删除的节点。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ol>
+<li><a href="https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactChildFiber.js" target="_blank" rel="noopener">React源码</a></li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://zeigo.github.io/2018/01/23/2018-1-23-React基于key的重排算法/" data-id="cjcrcr7og000bq697bkq2cckf" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/JavaScript/">JavaScript</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/React/">React</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+ <script src="/jquery/jquery.min.js"></script>
+  <div id="random_posts">
+    <h2>推荐文章</h2>
+    <div class="random_posts_ul">
+      <script>
+          var random_count =4
+          var site = {BASE_URI:'/'};
+          function load_random_posts(obj) {
+              var arr=site.posts;
+              if (!obj) return;
+              // var count = $(obj).attr('data-count') || 6;
+              for (var i, tmp, n = arr.length; n; i = Math.floor(Math.random() * n), tmp = arr[--n], arr[n] = arr[i], arr[i] = tmp);
+              arr = arr.slice(0, random_count);
+              var html = '<ul>';
+            
+              for(var j=0;j<arr.length;j++){
+                var item=arr[j];
+                html += '<li><strong>' + 
+                item.date + ':&nbsp;&nbsp;<a href="' + (site.BASE_URI+item.uri) + '">' + 
+                (item.title || item.uri) + '</a></strong>';
+                if(item.excerpt){
+                  html +='<div class="post-excerpt">'+item.excerpt+'</div>';
+                }
+                html +='</li>';
+                
+              }
+              $(obj).html(html + '</ul>');
+          }
+          $('.random_posts_ul').each(function () {
+              var c = this;
+              if (!site.posts || !site.posts.length){
+                  $.getJSON(site.BASE_URI + 'js/posts.js',function(json){site.posts = json;load_random_posts(c)});
+              } 
+               else{
+                load_random_posts(c);
+              }
+          });
+      </script>
+    </div>
+  </div>
+
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2018/01/20/2018-1-20-React事件系统/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">React事件系统</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+ 
+     
+  <div class="comments" id="comments">
+    
+     
+       
+       
+      
+      
+           <div id="gitment_comments"></div>
+    
+  </div>
+ 
+  
+
+</section>
+           
+    <aside id="sidebar">
+  
+    
+
+  
+    
+    <div class="widget-wrap">
+    
+      <div class="widget" id="toc-widget-fixed">
+      
+        <strong class="toc-title">文章目录</strong>
+        <div class="toc-widget-list">
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#简化模型"><span class="toc-number">1.</span> <span class="toc-text">简化模型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#标记"><span class="toc-number">1.1.</span> <span class="toc-text">标记</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#移动"><span class="toc-number">1.2.</span> <span class="toc-text">移动</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#实际实现"><span class="toc-number">2.</span> <span class="toc-text">实际实现</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考"><span class="toc-number">3.</span> <span class="toc-text">参考</span></a></li></ol>
+          </div>
+      </div>
+    </div>
+
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+
+  
+</aside>
+
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-left">
+      &copy; 2014 - 2018 Zeigo&nbsp;|&nbsp;
+      主题 <a href="https://github.com/giscafer/hexo-theme-cafe/" target="_blank">Cafe</a>
+    </div>
+     <div id="footer-right">
+      联系方式&nbsp;|&nbsp;zjj1149@gmail.com
+    </div>
+  </div>
+</footer>
+ <script src="/jquery/jquery.min.js"></script>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/about" class="mobile-nav-link">关于</a>
+  
+</nav>
+    <img class="back-to-top-btn" src="/images/fly-to-top.png"/>
+<script>
+// Elevator script included on the page, already.
+window.onload = function() {
+  var elevator = new Elevator({
+    selector:'.back-to-top-btn',
+    element: document.querySelector('.back-to-top-btn'),
+    duration: 1000 // milliseconds
+  });
+}
+</script>
+      
+
+  
+
+  
+
+
+
+
+
+
+
+<!-- author:forvoid begin -->
+<!-- author:forvoid begin -->
+
+  <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+  <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script> 
+  <script>
+  var gitment = new Gitment({
+    // id: '页面 ID', // 可选。默认为 location.href
+    owner: 'zeigo',
+    repo: 'zeigo.github.io',
+    oauth: {
+    client_id: 'e082be8fdcfd8602e6f8',
+    client_secret: '6922cd82b1bcfde93141e086bff18656d32dfc58',
+    }
+  })
+  gitment.render(document.getElementById("gitment_comments"))
+</script>
+
+
+<!-- author:forvoid end -->
+
+<!-- author:forvoid end -->
+
+
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      })
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      })
+    </script>
+    <script type="text/javascript" src="https://cdn.rawgit.com/mathjax/MathJax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+ <script src="/js/is.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+<script src="/js/elevator.js"></script>
+  </div>
+</body>
+</html>

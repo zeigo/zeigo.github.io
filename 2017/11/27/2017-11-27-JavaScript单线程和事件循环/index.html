@@ -13,8 +13,8 @@
 <meta property="og:site_name" content="Zeigo&#39;s blog">
 <meta property="og:description" content="JavaScript, 单线程，事件循环，任务队列">
 <meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20171127-%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97.png">
-<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20171127-%E5%AE%8F%E4%BB%BB%E5%8A%A1%E5%BE%AE%E4%BB%BB%E5%8A%A1.png">
-<meta property="og:updated_time" content="2017-12-04T16:42:27.413Z">
+<meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20171127-%E5%AE%8F%E4%BB%BB%E5%8A%A1%EF%BC%8C%E5%BE%AE%E4%BB%BB%E5%8A%A1.png">
+<meta property="og:updated_time" content="2018-01-28T11:02:44.375Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JavaScript单线程和事件循环">
 <meta name="twitter:description" content="JavaScript, 单线程，事件循环，任务队列">
@@ -95,9 +95,23 @@
       
         <!-- Table of Contents -->
         
-        <p>JavaScript的一大特点就是单线程，在JS的执行环境里，同一时间只能做一件事，不存在并发。</p>
+        <p>JavaScript的一大特点就是单线程，在JS引擎里，同一时间只能做一件事，不存在并发。</p>
 <a id="more"></a>
-<h1 id="Event-Loop"><a href="#Event-Loop" class="headerlink" title="Event Loop"></a>Event Loop</h1><ul>
+<h2 id="进程和线程"><a href="#进程和线程" class="headerlink" title="进程和线程"></a>进程和线程</h2><p>进程有系统分配的内存空间，相互之间独立。一个进程中有一个或多个线程，协作完成任务。</p>
+<p>Chrome一个Tab可以看成一个浏览器渲染进程，包含常用线程：</p>
+<ol>
+<li><p>JS引擎：执行js脚本</p>
+</li>
+<li><p>GUI渲染：解析HTML、CSS，布局，绘制。当界面需要repaint或reflow，线程会执行。当JS引擎执行时，GUI线程会挂起，GUI更新会保存在一个队列里等空闲执行。</p>
+</li>
+<li><p>事件触发：事件触发时将任务加到队列末尾</p>
+</li>
+<li><p>定时触发器</p>
+</li>
+<li><p>异步http请求</p>
+</li>
+</ol>
+<h2 id="Event-Loop"><a href="#Event-Loop" class="headerlink" title="Event Loop"></a>Event Loop</h2><ul>
 <li><p>执行时的任务分为同步和异步。</p>
 </li>
 <li><p>同步任务在主线程依次执行，异步任务进入Event Table并注册回调函数callback，如<code>setTimeout</code> <code>on</code>。</p>
@@ -110,31 +124,45 @@
 </li>
 </ul>
 <p><img src="http://p02ojz1i2.bkt.clouddn.com/20171127-%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97.png" alt=""></p>
-<h1 id="Macro-Task-Micro-Task"><a href="#Macro-Task-Micro-Task" class="headerlink" title="Macro Task/Micro Task"></a>Macro Task/Micro Task</h1><ul>
-<li>macro: 整体代码script, setTimeout, setInterval, on</li>
-<li>micro: Promise, process.nextTick</li>
+<h2 id="Macro-Task-Micro-Task"><a href="#Macro-Task-Micro-Task" class="headerlink" title="Macro Task/Micro Task"></a>Macro Task/Micro Task</h2><p>前面的事件循环模型中，只有一个事件队列，而实际上由于任务的优先级不同，可以看做有不同优先级的事件队列。</p>
+<p>macro: 整体代码script, setTimeout, setInterval, on</p>
+<p>micro: Promise, process.nextTick</p>
+<p>执行过程</p>
+<ul>
+<li><p>执行一个宏任务</p>
+</li>
+<li><p>执行过程中如果遇到微任务，就将它添加到微任务的任务队列中</p>
+</li>
+<li><p>宏任务执行完毕后，立即依次执行当前微任务队列中的所有微任务</p>
+</li>
+<li><p>检查GUI更新，有的话开始渲染更新，包括scroll，resize，fullscreen，requestAnimationFrame，GUI渲染</p>
+</li>
+<li><p>渲染完毕后，JS线程继续接管，从事件队列开始下一个宏任务</p>
+</li>
 </ul>
-<p>主线程执行完后，先从微任务Event Queue取出任务进栈，nextTick优于Promise。当微任务队列为空时，才开始取宏任务队列。</p>
-<p>注：宏任务队列不只有一个，根据回调的类型不同会有对应的任务队列，优先级不同，为简单理解可以视为只有一个宏任务队列。</p>
-<p><img src="http://p02ojz1i2.bkt.clouddn.com/20171127-%E5%AE%8F%E4%BB%BB%E5%8A%A1%E5%BE%AE%E4%BB%BB%E5%8A%A1.png" alt=""></p>
-<h1 id="练习"><a href="#练习" class="headerlink" title="练习"></a>练习</h1><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">console</span>.log(<span class="string">'1'</span>);</span><br><span class="line"></span><br><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'2'</span>);</span><br><span class="line">    process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'3'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'4'</span>);</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'5'</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br><span class="line">process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'6'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"><span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'7'</span>);</span><br><span class="line">    resolve();</span><br><span class="line">&#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'8'</span>)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'9'</span>);</span><br><span class="line">    process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'10'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'11'</span>);</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'12'</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p><img src="http://p02ojz1i2.bkt.clouddn.com/20171127-%E5%AE%8F%E4%BB%BB%E5%8A%A1%EF%BC%8C%E5%BE%AE%E4%BB%BB%E5%8A%A1.png" alt=""></p>
+<h2 id="练习"><a href="#练习" class="headerlink" title="练习"></a>练习</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">console</span>.log(<span class="string">'1'</span>);</span><br><span class="line"></span><br><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'2'</span>);</span><br><span class="line">    process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'3'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'4'</span>);</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'5'</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br><span class="line">process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'6'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"><span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'7'</span>);</span><br><span class="line">    resolve();</span><br><span class="line">&#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'8'</span>)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'9'</span>);</span><br><span class="line">    process.nextTick(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'10'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'11'</span>);</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'12'</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
 <p>去掉nextTick浏览器： 1 7 8 2 4 5 9 11 12</p>
 <p>理论输出：1 7 <strong>6</strong> 8 2 4 <strong>3</strong> 5 9 11 <strong>10</strong> 12</p>
 <p>Node环境还可能有这种情况：1 7 <strong>6</strong> 8 2 4 9 11 <strong>3</strong> <strong>10</strong> 5 12</p>
 <p>原因在于Node事件循环与浏览器环境不同。</p>
-<h1 id="Node事件循环"><a href="#Node事件循环" class="headerlink" title="Node事件循环"></a>Node事件循环</h1><p>简单来说，在从宏任务队列取任务的时候，浏览器是只取一个，执行完后再下一轮循环；而Node是全拿出来执行，执行完才下一个Tick。</p>
+<h2 id="Node事件循环"><a href="#Node事件循环" class="headerlink" title="Node事件循环"></a>Node事件循环</h2><p>简单来说，在从宏任务队列取任务的时候，浏览器是只取一个，执行完后再下一轮循环；而Node是全拿出来执行，执行完才下一个Tick。</p>
 <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">1</span>);</span><br><span class="line">  process.nextTick(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="number">2</span>);</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;)</span><br><span class="line">setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">3</span>)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
 <p>结果可能是：1 2 3 或 1 3 2，区别就在于在取宏任务队列的时候，是否两个回调都已超时。</p>
-<h1 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h1><p>浏览器中的事件循环理解到此已经足够，但Node还可以继续深究，以后有时间研究Node的时候再回来讨论。</p>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
-<li><a href="https://juejin.im/post/59e85eebf265da430d571f89" target="_blank" rel="noopener">这一次，彻底弄懂 JavaScript 执行机制</a></li>
-<li><a href="http://www.zcfy.cc/article/event-loop-and-the-big-picture-nodejs-event-loop-part-1-3566.html?t=new" target="_blank" rel="noopener">事件循环总体概览 —— Node 事件循环 Part 1</a></li>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>浏览器中的事件循环理解到此已经足够，但Node还可以继续深究，以后有时间研究Node的时候再回来讨论。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ol>
+<li><p><a href="https://www.w3.org/TR/html5/webappapis.html#event-loops" target="_blank" rel="noopener">W3C规范Event Loop</a></p>
+</li>
+<li><p><a href="https://juejin.im/post/59e85eebf265da430d571f89" target="_blank" rel="noopener">这一次，彻底弄懂 JavaScript 执行机制</a></p>
+</li>
+<li><p><a href="http://www.zcfy.cc/article/event-loop-and-the-big-picture-nodejs-event-loop-part-1-3566.html?t=new" target="_blank" rel="noopener">事件循环总体概览 —— Node 事件循环 Part 1</a></p>
+</li>
 </ol>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://zeigo.github.io/2017/11/27/2017-11-27-JavaScript单线程和事件循环/" data-id="cjcyhwlxr0004mz97nz7b2bht" class="article-share-link">分享</a>
+      <a data-url="http://zeigo.github.io/2017/11/27/2017-11-27-JavaScript单线程和事件循环/" data-id="cjcyoae2w00002f9723roymxy" class="article-share-link">分享</a>
       
       
       
@@ -236,7 +264,7 @@
       
         <strong class="toc-title">文章目录</strong>
         <div class="toc-widget-list">
-              <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Event-Loop"><span class="toc-number">1.</span> <span class="toc-text">Event Loop</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Macro-Task-Micro-Task"><span class="toc-number">2.</span> <span class="toc-text">Macro Task/Micro Task</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#练习"><span class="toc-number">3.</span> <span class="toc-text">练习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Node事件循环"><span class="toc-number">4.</span> <span class="toc-text">Node事件循环</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#结语"><span class="toc-number">5.</span> <span class="toc-text">结语</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">6.</span> <span class="toc-text">参考</span></a></li></ol>
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#进程和线程"><span class="toc-number">1.</span> <span class="toc-text">进程和线程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Event-Loop"><span class="toc-number">2.</span> <span class="toc-text">Event Loop</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Macro-Task-Micro-Task"><span class="toc-number">3.</span> <span class="toc-text">Macro Task/Micro Task</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#练习"><span class="toc-number">4.</span> <span class="toc-text">练习</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Node事件循环"><span class="toc-number">5.</span> <span class="toc-text">Node事件循环</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#结语"><span class="toc-number">6.</span> <span class="toc-text">结语</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考"><span class="toc-number">7.</span> <span class="toc-text">参考</span></a></li></ol>
           </div>
       </div>
     </div>

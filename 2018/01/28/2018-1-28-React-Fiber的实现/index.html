@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>React Fiber的实现 | Zeigo&#39;s blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="React Fiber的实现">
+<meta name="keywords" content="JavaScript,React">
+<meta property="og:type" content="article">
+<meta property="og:title" content="React Fiber的实现">
+<meta property="og:url" content="http://zeigo.github.io/2018/01/28/2018-1-28-React-Fiber的实现/index.html">
+<meta property="og:site_name" content="Zeigo&#39;s blog">
+<meta property="og:description" content="React Fiber的实现">
+<meta property="og:updated_time" content="2018-01-28T08:08:57.670Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="React Fiber的实现">
+<meta name="twitter:description" content="React Fiber的实现">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    
+  
+  <link rel="stylesheet" href="/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    
+    <div id="header-inner" class="inner">
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://zeigo.github.io"></form>
+      </div>
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/about">关于</a>
+        
+      </nav>
+      
+    </div>
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Zeigo&#39;s blog</a>
+      </h1>
+      
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-2018-1-28-React-Fiber的实现" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/28/2018-1-28-React-Fiber的实现/" class="article-date">
+  <time datetime="2018-01-28T07:58:09.000Z" itemprop="datePublished">2018-01-28</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/JavaScript/">JavaScript</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      React Fiber的实现
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- Table of Contents -->
+        
+        <p>在React之前的版本中，进行更新时是连续的，将会阻塞整个线程。如果此时有一些重要的任务，比如用户交互、动画等被阻塞时，体验显然是很差的。而有些更新实际并不用着急完成，比如根据网络请求结果更新的内容，或者发生在画面以外。React16为了解决这一问题，而提出了Fiber的核心架构。</p>
+<a id="more"></a>
+<h2 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h2><ul>
+<li>virtual stack frame</li>
+</ul>
+<p>之前的React基于栈（stack），当函数被调用，会有新的栈帧（stack frame）进入栈，栈帧包含了这个函数要执行的工作的信息。执行完，栈帧出栈，当栈为空时才停止工作。</p>
+<p>为了解决之前UI渲染的问题，有必要自定义调用栈的行为，从而可以根据意愿中断调用栈并手动操作栈帧。</p>
+<p>fiber就是栈的特殊实现，将函数的调用栈帧转为内存中可控的fiber，从而可以决定何时执行这些工作（perform unit of work），或许可以视为将递归转为了循环。</p>
+<ul>
+<li>unit of work</li>
+</ul>
+<p>Fiber引入了新的概念incremental rendering（渐进式渲染，将渲染工作分隔，分布到不同的帧）。</p>
+<blockquote>
+<p>incremental rendering: the ability to split rendering work into chunks and spread it out over multiple frames.</p>
+</blockquote>
+<p>整个update的work可以分成不同的工作单元（unit of work），fiber就代表着工作单元。</p>
+<h2 id="基本属性"><a href="#基本属性" class="headerlink" title="基本属性"></a>基本属性</h2><p>fiber包含着work的对象(what to do)和方式(how to do)，其属性就是为这两者服务。</p>
+<h3 id="what"><a href="#what" class="headerlink" title="what"></a>what</h3><p>fiber的工作对象可以由<code>fiber.stateNode</code>得到。我们知道JSX解析后得到React Element，根据其type可以得到不同的实例，这些实例就是work的对象，而从实例也可以反回来得到fiber。type是string对应HostComponent实例（DOM元素，其<code>_reactInternalInstance</code>为fiber），type为构造函数对应ClassComponent实例（其<code>_reactInternalFiber</code>为fiber。需要注意React还会为<code>ReactDOM.render</code>的容器元素创建单独的HostRoot对象（其<code>current</code>为fiber）。</p>
+<p>instance的相关信息</p>
+<ul>
+<li><p>tag 实例类型，重要：HostRoot 3, ClassComponent 2, HostComponent 5, HostText 6</p>
+</li>
+<li><p>key 对应实例element的key</p>
+</li>
+<li><p>type 对应实例element的type</p>
+</li>
+<li><p>internalContextTag 表示是否默认异步渲染 AsyncUpdates 1</p>
+</li>
+</ul>
+<p>fiber之间的联系，可以反映出其实例的联系</p>
+<ul>
+<li><p>return  父元素</p>
+</li>
+<li><p>child  第一个子元素</p>
+</li>
+<li><p>sibling  相邻后一个兄弟元素</p>
+</li>
+</ul>
+<h3 id="how"><a href="#how" class="headerlink" title="how"></a>how</h3><ul>
+<li>alternate</li>
+</ul>
+<p>对于一个实例，最多会有两个对应的fiber（current和workInProgress），两者通过alternate互相指向，即current.alternate === workInProgress，workInProgress.alternate === current。current表示实例当前的状态，当需要更新时，会根据current复制出workInProgress，两者的信息相同，改变都发生在workInProgress上。当更新完成后，workInProgress会变成current。</p>
+<ul>
+<li>updateQueue 包含了更新的信息，形式有多种。</li>
+</ul>
+<p>对于ClassComponent，是一个setState形成的Update对象组成的链表。</p>
+<p>对于HostComponent，是DOM元素新旧属性对比得到的一个数组，描述了该如何更新其属性。比如<code>&lt;div id=&quot;i1&quot;&gt;</code>要变成<code>&lt;div id=&quot;i2&quot;&gt;</code>，会得到一个数组<code>[&quot;id&quot;, &quot;i2&quot;]</code>，表示将id变为i2。</p>
+<ul>
+<li><p>memorizedState 实例最终的state</p>
+</li>
+<li><p>pendingProps 实例即将接受的props，作用在workInProgress上</p>
+</li>
+<li><p>memorizedProps 实例最终的props</p>
+</li>
+<li><p>expirationTime 完成工作的期限</p>
+</li>
+</ul>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1单位代表10ms</span></span><br><span class="line">NoWork = <span class="number">0</span></span><br><span class="line">Sync = <span class="number">1</span></span><br><span class="line">Never = <span class="number">2147483647</span></span><br><span class="line"><span class="comment">// async任务：当前时间加上约1000ms，超时后为同步任务</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>effectTag 更新造成side effect的类型</li>
+</ul>
+<p>React将更新的差异视为side effect，其类型以二进制表示，好处是可以使用位运算，&amp;取交，|取并。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 重要的几种</span></span><br><span class="line">NoEffect <span class="comment">// 0, 不操作</span></span><br><span class="line">Placement <span class="comment">// 2, 插入</span></span><br><span class="line">Update <span class="comment">// 4, 更新</span></span><br><span class="line">Deletion <span class="comment">// 8, 删除</span></span><br><span class="line"></span><br><span class="line">fiber.effectTag &amp; Deletion <span class="comment">// 是否含Deletion</span></span><br><span class="line">fiber.effectTag |= Placement <span class="comment">// 加入Placement</span></span><br><span class="line">fiber.effectTag &amp;= ~Update <span class="comment">// 删去Update</span></span><br></pre></td></tr></table></figure>
+<p>effect相关属性</p>
+<ul>
+<li><p>nextEffect 下一个要处理的effect</p>
+</li>
+<li><p>firstEffect 子树中第一个要处理的effect</p>
+</li>
+<li><p>lastEffect 子树中最后一个要处理的effect</p>
+</li>
+</ul>
+<h2 id="Scheduler"><a href="#Scheduler" class="headerlink" title="Scheduler"></a>Scheduler</h2><p>既然不使用栈，那各个工作单元的执行过程也不以栈的形式决定。React有自己的调度（scheduler），来决定how和when执行工作单元。以下根据React应用更新的流程来具体分析fiber及scheduler的运用，注意下面的代码为便于理解，相比源码做了一定的简化。</p>
+<p>要更新一个React应用的状态，最常用的就是ReactDOM.render和setState，两者的流程大致相同。</p>
+<h3 id="找到更新对应的fiber"><a href="#找到更新对应的fiber" class="headerlink" title="找到更新对应的fiber"></a>找到更新对应的fiber</h3><p>render对应的是HostRoot实例的fiber，是最顶层的fiber，初次渲染时需要新建HostRoot实例及其fiber；而setState对应的则是ClassComponent实例的fiber</p>
+<h3 id="计算更新的expirationTime"><a href="#计算更新的expirationTime" class="headerlink" title="计算更新的expirationTime"></a>计算更新的expirationTime</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">computeExpirationForFiber</span>(<span class="params">fiber</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> expirationTime;</span><br><span class="line">  <span class="keyword">if</span> (expirationContext !== NoWork) &#123;</span><br><span class="line">    <span class="comment">// An explicit expiration context was set;</span></span><br><span class="line">    expirationTime = expirationContext;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (isWorking) &#123;</span><br><span class="line">    <span class="keyword">if</span> (isCommitting) &#123;</span><br><span class="line">      <span class="comment">// Updates that occur during the commit phase should have sync priority</span></span><br><span class="line">      <span class="comment">// by default.</span></span><br><span class="line">      expirationTime = Sync;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// Updates during the render phase should expire at the same time as</span></span><br><span class="line">      <span class="comment">// the work that is being rendered.</span></span><br><span class="line">      <span class="comment">// render阶段，可能是componentWillMount等调用了setState，</span></span><br><span class="line">      <span class="comment">// 所以这个时候的setState会合并</span></span><br><span class="line">      expirationTime = nextRenderExpirationTime;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// No explicit expiration context was set, and we're not currently</span></span><br><span class="line">    <span class="comment">// performing work. Calculate a new expiration time.</span></span><br><span class="line">    <span class="keyword">if</span> (fiber.internalContextTag &amp; AsyncUpdates) &#123;</span><br><span class="line">      <span class="comment">// This is an async update</span></span><br><span class="line">      expirationTime = computeAsyncExpiration();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// This is a sync update</span></span><br><span class="line">      expirationTime = Sync;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> expirationTime;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="insertUpdateIntoFiber"><a href="#insertUpdateIntoFiber" class="headerlink" title="insertUpdateIntoFiber"></a>insertUpdateIntoFiber</h3><p>更新以Update的形式插入fiber的updateQueue，updateQueue的expirationTime保持为其中update里最小的expirationTime，也可以反映出fiber的expirationTime。</p>
+<h3 id="scheduleWork"><a href="#scheduleWork" class="headerlink" title="scheduleWork"></a>scheduleWork</h3><p>从当前的fiber开始，冒泡到root fiber，更新expirationTime。所以无论更新发生在哪里，最终都是从root开始工作的。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> (node !== <span class="literal">null</span>) &#123;</span><br><span class="line">  <span class="keyword">if</span> (node.expirationTime === NoWork || node.expirationTime &gt; expirationTime) &#123;</span><br><span class="line">    node.expirationTime = expirationTime;</span><br><span class="line">  &#125; <span class="comment">// 之前是NoWork或者新的expirationTime更小（时间更加紧迫），则更新expirationTime</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (node[<span class="string">'return'</span>] === <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (node.tag === HostRoot) &#123;</span><br><span class="line">      <span class="keyword">var</span> root = node.stateNode;</span><br><span class="line">      requestWork(root, expirationTime);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  node = node[<span class="string">'return'</span>];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="requestWork"><a href="#requestWork" class="headerlink" title="requestWork"></a>requestWork</h3><p>每当有更新发生，都会请求（request）开始工作，这时根据具体情况决定是否执行工作（performWork）。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">requestWork</span>(<span class="params">root, expirationTime</span>) </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 把root加入scheduler中，由于页面可能有多个root，这里有firstScheduledRoot和</span></span><br><span class="line">  <span class="comment">// lastScheduledRoot两个变量来记录首尾，root的nextScheduledRoot指向</span></span><br><span class="line">  <span class="comment">// 下一个加入scheduler的root</span></span><br><span class="line">  <span class="keyword">if</span> (root.nextScheduledRoot === <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="comment">// This root is not already scheduled. Add it.</span></span><br><span class="line">    root.remainingExpirationTime = expirationTime;</span><br><span class="line">    <span class="keyword">if</span> (lastScheduledRoot === <span class="literal">null</span>) &#123;</span><br><span class="line">      firstScheduledRoot = lastScheduledRoot = root;</span><br><span class="line">      root.nextScheduledRoot = root;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      lastScheduledRoot.nextScheduledRoot = root;</span><br><span class="line">      lastScheduledRoot = root;</span><br><span class="line">      lastScheduledRoot.nextScheduledRoot = firstScheduledRoot;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// This root is already scheduled, but its priority may have increased.</span></span><br><span class="line">    <span class="keyword">var</span> remainingExpirationTime = root.remainingExpirationTime;</span><br><span class="line">    <span class="keyword">if</span> (remainingExpirationTime === NoWork || expirationTime &lt; remainingExpirationTime) &#123;</span><br><span class="line">      <span class="comment">// Update the priority.</span></span><br><span class="line">      root.remainingExpirationTime = expirationTime;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (isRendering) &#123;</span><br><span class="line">    <span class="comment">// 如果此时正处于render阶段，说明这次update发生在componentWillMount等生命周期函数里，</span></span><br><span class="line">    <span class="comment">// 这次update会合并到之前的工作里</span></span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (expirationTime === Sync) &#123;</span><br><span class="line">    performWork(Sync, <span class="literal">null</span>);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// 异步执行，requestIdleCallback，会根据expirationTime计算参数的timeout</span></span><br><span class="line">    <span class="comment">// 回调为performWork(NoWork)</span></span><br><span class="line">    scheduleCallbackWithExpiration(expirationTime);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="performWork"><a href="#performWork" class="headerlink" title="performWork"></a>performWork</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">performWork</span>(<span class="params">minExpirationTime, dl</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// minExpirationTime            dl</span></span><br><span class="line">  <span class="comment">//       Sync                  null</span></span><br><span class="line">  <span class="comment">//      NoWork       &#123;didTimeout, timeRemaining()&#125;</span></span><br><span class="line">  deadline = dl;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 找到scheduler中expirationTime最小的root，设为nextFlushedRoot，</span></span><br><span class="line">  <span class="comment">// 并对应nextFlushedExpirationTime</span></span><br><span class="line">  findHighestPriorityRoot();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 当找到了下个work并还没到deadline，performWorkOnRoot</span></span><br><span class="line">  <span class="keyword">while</span> (nextFlushedRoot !== <span class="literal">null</span> &amp;&amp; nextFlushedExpirationTime !== NoWork &amp;&amp; (minExpirationTime === NoWork || nextFlushedExpirationTime &lt;= minExpirationTime) &amp;&amp; !deadlineDidExpire) &#123;</span><br><span class="line">    performWorkOnRoot(nextFlushedRoot, nextFlushedExpirationTime);</span><br><span class="line">    <span class="comment">// Find the next highest priority work.</span></span><br><span class="line">    findHighestPriorityRoot();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 如果还有工作没做完，说明时间不够，继续异步</span></span><br><span class="line">  <span class="keyword">if</span> (nextFlushedExpirationTime !== NoWork) &#123;</span><br><span class="line">    scheduleCallbackWithExpiration(nextFlushedExpirationTime);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Clean-up.</span></span><br><span class="line">  deadline = <span class="literal">null</span>;</span><br><span class="line">  deadlineDidExpire = <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="performWorkOnRoot"><a href="#performWorkOnRoot" class="headerlink" title="performWorkOnRoot"></a>performWorkOnRoot</h3><p>work分为两个阶段，render和commit</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">performWorkOnRoot</span>(<span class="params">root, expirationTime</span>) </span>&#123;</span><br><span class="line">  isRendering = <span class="literal">true</span> <span class="comment">// 进入render阶段</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">let</span> finishedWork = root.finishedWork</span><br><span class="line">  <span class="keyword">if</span> (finishedWork !== <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="comment">// 之前已完成render，但是时间不够commit而中断，现在继续commit</span></span><br><span class="line">    root.finishedWork = <span class="literal">null</span></span><br><span class="line">    root.remainingExpirationTime = commitRoot(finishedWork)</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    finishedWork = renderRoot(root, expirationTime)</span><br><span class="line">    <span class="comment">// 如果renderRoot过程中时间不够而中断，finishedWork为null，不会commitRoot</span></span><br><span class="line">    <span class="keyword">if</span> (finishedWork !== <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="keyword">if</span> (expirationTime &lt; recalculateCurrentTime()) &#123;</span><br><span class="line">        <span class="comment">// sync/expired work，直接commit</span></span><br><span class="line">        root.remainingExpirationTime = commitRoot(finishedWork)</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!shouldYield()) &#123; <span class="comment">// async，还有时间剩余，直接commit</span></span><br><span class="line">        root.remainingExpirationTime = commitRoot(finishedWork)</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123; <span class="comment">// 没时间剩余，之后再commit</span></span><br><span class="line">        root.finishedWork = finishedWork</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  isRendering = <span class="literal">false</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 判断暂停有两个地方用到</span></span><br><span class="line"><span class="comment">// 1.renderRoot的过程中，performUnitOfWork后要判断时间，</span></span><br><span class="line"><span class="comment">// 如果没时间，之后从nextUnitOfWork继续</span></span><br><span class="line"><span class="comment">// 2.renderRoot后要判断时间，如果没时间，之后从root.finishedWork继续</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">shouldYield</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (deadline === <span class="literal">null</span>) <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">  <span class="keyword">if</span> (deadline.timeRemaining() &gt; <span class="number">1</span>) <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">  deadlineDidExpire = <span class="literal">true</span></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="renderRoot"><a href="#renderRoot" class="headerlink" title="renderRoot"></a>renderRoot</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 当workLoop中performUnitOfWork因时间不够停止时，isReadyForCommit仍为false，返回null</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">renderRoot</span>(<span class="params">root, expirationTime</span>) </span>&#123;</span><br><span class="line">  isWorking = <span class="literal">true</span></span><br><span class="line">  root.isReadyForCommit = <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 判断是否从新开始，如果nextUnitOfWork不为null，证明之前有unit of work因时间不够</span></span><br><span class="line">  <span class="comment">// 还未完成，需要从中断的地方即nextUnitOfWork继续，</span></span><br><span class="line">  <span class="comment">// 否则根据current创建workInProgress从新开始</span></span><br><span class="line">  <span class="keyword">if</span> (root !== nextRoot || expirationTime !== nextRenderExpirationTime || nextUnitOfWork === <span class="literal">null</span>) &#123;</span><br><span class="line">    nextRoot = root</span><br><span class="line">    nextRenderExpirationTime = expirationTime</span><br><span class="line">    nextUnitOfWork = createWorkInProgress(root.current, <span class="literal">null</span>, nextRenderExpirationTime)</span><br><span class="line">  &#125;</span><br><span class="line">  workLoop(expirationTime)</span><br><span class="line">  isWorking = <span class="literal">false</span></span><br><span class="line">  <span class="keyword">return</span> root.isReadyForCommit ? root.current.alternate : <span class="literal">null</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="workLoop"><a href="#workLoop" class="headerlink" title="workLoop"></a>workLoop</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">workLoop</span>(<span class="params">expirationTime</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (nextRenderExpirationTime === NoWork || nextRenderExpirationTime &gt; expirationTime)</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line">  <span class="keyword">if</span> (nextRenderExpirationTime &lt; mostRecentCurrentTime) &#123;</span><br><span class="line">    <span class="comment">// 如果是sync/expired work，不用考虑时间，执行每一个unit of work</span></span><br><span class="line">    <span class="keyword">while</span> (nextUnitOfWork !== <span class="literal">null</span>) &#123;</span><br><span class="line">      nextUnitOfWork = performUnitOfWork(nextUnitOfWork)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// async任务到deadline后停止，nextUnitOfWork为下次继续的位置</span></span><br><span class="line">    <span class="keyword">while</span> (nextUnitOfWork !== <span class="literal">null</span> &amp;&amp; !shouldYield()) &#123;</span><br><span class="line">      nextUnitOfWork = performUnitOfWork(nextUnitOfWork)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="performUnitOfWork"><a href="#performUnitOfWork" class="headerlink" title="performUnitOfWork"></a>performUnitOfWork</h3><p>perform分为begin/complete两步。深度优先遍历，先begin当前的workInProgress，然后往下找child来执行下一步work，如果没有的话complete当前work，并找同级的sibling，还没有的话往上回溯return并complete，继续找sibling。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">performUnitOfWork</span>(<span class="params">workInProgress</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> current = workInProgress.alternate</span><br><span class="line">  <span class="keyword">let</span> next = beginWork(current, workInProgress, nextRenderExpirationTime)</span><br><span class="line">  <span class="keyword">if</span> (next === <span class="literal">null</span>) &#123;</span><br><span class="line">    next = completeUnitOfWork(workInProgress)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> next</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="beginWork"><a href="#beginWork" class="headerlink" title="beginWork"></a>beginWork</h3><p>diff算法所在，根据实例的类型决定reconcile的方法。通过对比来修改fiber树，确定Placement, Deletion, ContentRest等Tag，新建/更新ClassComponent实例, 根据pendingProps和updateQueue来确定workInProgress的memorizedProps/State</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 返回下一个需要对比的节点，对应workInProgress.child</span></span><br><span class="line"><span class="comment">// 当到达叶节点时，无法再往下，返回null</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">beginWork</span>(<span class="params">current, workInProgress, renderExpirationTime</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (workInProgress.expirationTime === NoWork || workInProgress.expirationTime &gt; renderExpirationTime)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span></span><br><span class="line">  <span class="comment">// 低优先级可以不处理</span></span><br><span class="line">  <span class="keyword">switch</span> (workInProgress.tag) &#123;</span><br><span class="line">    <span class="keyword">case</span> HostRoot:</span><br><span class="line">      <span class="keyword">return</span> updateHostRoot(current, workInProgress, renderExpirationTime)</span><br><span class="line">    <span class="keyword">case</span> HostComponent:</span><br><span class="line">      <span class="keyword">return</span> updateHostComponent(current, workInProgress, renderExpirationTime)</span><br><span class="line">    <span class="keyword">case</span> HostText:</span><br><span class="line">      <span class="keyword">return</span> updateHostText(current, workInProgress)</span><br><span class="line">    <span class="keyword">case</span> ClassComponent:</span><br><span class="line">      <span class="keyword">return</span> updateClassComponent(current, workInProgress, renderExpirationTime)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="completeUnitOfWork"><a href="#completeUnitOfWork" class="headerlink" title="completeUnitOfWork"></a>completeUnitOfWork</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 当还有sibling时，不返回null，对sibling performUnitOfWork</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">completeUnitOfWork</span>(<span class="params">workInProgress</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">    <span class="keyword">var</span> current = workInProgress.alternate;</span><br><span class="line">    <span class="keyword">var</span> next = completeWork(current, workInProgress, nextRenderExpirationTime);</span><br><span class="line">    <span class="comment">// 具体处理</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> returnFiber = workInProgress[<span class="string">'return'</span>];</span><br><span class="line">    <span class="keyword">var</span> siblingFiber = workInProgress.sibling;</span><br><span class="line">    <span class="comment">// 重置expirationTime，一般重置为NoWork，如果还有未完成的update，子树还有updateQueue</span></span><br><span class="line">    <span class="comment">// 不为空，则为其中最小的expirationTime</span></span><br><span class="line">    resetExpirationTime(workInProgress, nextRenderExpirationTime);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (returnFiber !== <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="comment">// workInProgress子树的effect list连接到returnFiber的effect list上</span></span><br><span class="line">      <span class="comment">// 通过层层回溯，最终会连接到root fiber上</span></span><br><span class="line">      <span class="keyword">if</span> (returnFiber.firstEffect === <span class="literal">null</span>) &#123;</span><br><span class="line">        returnFiber.firstEffect = workInProgress.firstEffect;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (workInProgress.lastEffect !== <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (returnFiber.lastEffect !== <span class="literal">null</span>) &#123;</span><br><span class="line">          returnFiber.lastEffect.nextEffect = workInProgress.firstEffect;</span><br><span class="line">        &#125;</span><br><span class="line">        returnFiber.lastEffect = workInProgress.lastEffect;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">var</span> effectTag = workInProgress.effectTag;</span><br><span class="line">      <span class="comment">// 如果workInProgress本身有side effect，将workInProgress插到returnFiber</span></span><br><span class="line">      <span class="comment">// 的effect list的最后</span></span><br><span class="line">      <span class="keyword">if</span> (effectTag &gt; PerformedWork) &#123;</span><br><span class="line">        <span class="keyword">if</span> (returnFiber.lastEffect !== <span class="literal">null</span>) &#123;</span><br><span class="line">          returnFiber.lastEffect.nextEffect = workInProgress;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          returnFiber.firstEffect = workInProgress;</span><br><span class="line">        &#125;</span><br><span class="line">        returnFiber.lastEffect = workInProgress;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (siblingFiber !== <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="comment">// If there is more work to do in this returnFiber, do that next.</span></span><br><span class="line">      <span class="keyword">return</span> siblingFiber;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (returnFiber !== <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="comment">// If there's no more work in this returnFiber. Complete the returnFiber.</span></span><br><span class="line">      workInProgress = returnFiber;</span><br><span class="line">      <span class="keyword">continue</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// We've reached the root.</span></span><br><span class="line">      <span class="keyword">var</span> root = workInProgress.stateNode;</span><br><span class="line">      root.isReadyForCommit = <span class="literal">true</span>;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="completeWork"><a href="#completeWork" class="headerlink" title="completeWork"></a>completeWork</h3><p>主要针对HostComponent实例，包括新建DOM元素，根据pendingProps、memorizedProps得到updateQueue，设置effectTag等。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">completeWork</span>(<span class="params">current, workInProgress</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> newProps = workInProgress.pendingProps</span><br><span class="line">  <span class="keyword">if</span> (newProps === <span class="literal">null</span>) &#123;</span><br><span class="line">    newProps = workInProgress.memorizedProps</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    workInProgress.pendingProps = <span class="literal">null</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">let</span> oldProps = current !== <span class="literal">null</span> ? current.memorizedProps : <span class="literal">null</span></span><br><span class="line">  <span class="keyword">switch</span> (workInProgress.tag) &#123;</span><br><span class="line">    <span class="keyword">case</span> ClassComponent: &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">case</span> HostComponent: &#123;</span><br><span class="line">      <span class="keyword">let</span> type = workInProgress.type</span><br><span class="line">      <span class="keyword">if</span> (current !== <span class="literal">null</span> &amp;&amp; workInProgress.stateNode !== <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// update</span></span><br><span class="line">        <span class="keyword">let</span> instance = workInProgress.stateNode</span><br><span class="line">        <span class="keyword">let</span> updatePayload = prepareUpdate(instance, type, oldProps, newProps)</span><br><span class="line">        updateHostComponent(workInProgress, updatePayload)</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> instance = createInstance(type, newProps, workInProgress)</span><br><span class="line">        appendAllChildren(instance, workInProgress)</span><br><span class="line">        finalizeInitialChildren(type, instance, newProps)</span><br><span class="line">        workInProgress.stateNode = instance</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">case</span> HostText: &#123;</span><br><span class="line">      <span class="keyword">let</span> newText = newProps;</span><br><span class="line">      <span class="keyword">if</span> (current !== <span class="literal">null</span> &amp;&amp; workInProgress.stateNode !== <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">var</span> oldText = current.memorizedProps</span><br><span class="line">        updateHostText(workInProgress, oldText, newText)</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> textInstance = createTextInstance(newText, workInProgress)</span><br><span class="line">        workInProgress.stateNode = textInstance</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">case</span> HostRoot: &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="commitRoot"><a href="#commitRoot" class="headerlink" title="commitRoot"></a>commitRoot</h3><p>完成render阶段后，对比已经完成。通过begin和complete工作，需要做的更新保存在root fiber的firstEffect和lastEffect维持的effect list上，现在需要遍历链表把更新反映到实际的DOM视图上。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 遍历两次，最后返回值作为hostRoot的remainingExpirationTime</span></span><br><span class="line"><span class="comment">// 如果为NoWork，本次工作就结束了；否则还有工作没完成，会继续performWorkOnRoot</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">commitRoot</span>(<span class="params">finishedWork</span>) </span>&#123;</span><br><span class="line">  isWorking = <span class="literal">true</span></span><br><span class="line">  isCommitting = <span class="literal">true</span></span><br><span class="line">  <span class="keyword">let</span> root = finishedWork.stateNode</span><br><span class="line">  root.isReadyForCommit = <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">let</span> firstEffect</span><br><span class="line">  <span class="keyword">if</span> (finishedWork.effectTag &gt; PerformedWork) &#123;</span><br><span class="line">    <span class="comment">// root本身有side effect，也要连接到effect list最后</span></span><br><span class="line">    <span class="keyword">if</span> (finishedWork.lastEffect !== <span class="literal">null</span>) &#123;</span><br><span class="line">      finishedWork.lastEffect.nextEffect = finishedWork</span><br><span class="line">      firstEffect = finishedWork.firstEffect</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      firstEffect = finishedWork</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    firstEffect = finishedWork.firstEffect</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  nextEffect = firstEffect</span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (nextEffect !== <span class="literal">null</span>) &#123;</span><br><span class="line">    commitAllHostEffects()</span><br><span class="line">    <span class="comment">// 第一次遍历，根据effectTag进行相应的DOM操作</span></span><br><span class="line">    <span class="comment">// 比如Placement要insertBefore/appendChild</span></span><br><span class="line">    <span class="comment">// Deletion要removeChild</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  root.current = finishedWork</span><br><span class="line">  <span class="comment">// workInProgress取代current</span></span><br><span class="line">  nextEffect = firstEffect</span><br><span class="line">  <span class="keyword">while</span> (nextEffect !== <span class="literal">null</span>) &#123;</span><br><span class="line">    commitAllLifeCycles()</span><br><span class="line">    <span class="comment">// 第二次遍历，完成componentDidMount/componentDidUpdate及setState的回调等</span></span><br><span class="line">  &#125;</span><br><span class="line">  isWorking = <span class="literal">false</span></span><br><span class="line">  isCommitting = <span class="literal">false</span></span><br><span class="line">  root.isReadyForCommit = <span class="literal">false</span></span><br><span class="line">  <span class="keyword">return</span> root.current.expirationTime</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>各个阶段的具体实现（begin/complete/commit）都比较繁琐，这里省略了，无非是switch case具体情况具体分析，这里重点还是放在整个更新的流程。个人认为难点还是在异步的状态管理上，之前的setState已经是异步，如今又提供了异步渲染，如何在保证性能的同时，建立数据状态与视图的映射？所幸React已经在底层实现，我们只需要声明式地构建应用。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ol>
+<li><p><a href="https://github.com/acdlite/react-fiber-architecture" target="_blank" rel="noopener">React Fiber Architecture</a></p>
+</li>
+<li><p><a href="https://www.youtube.com/watch?v=ZCuYPiUIONs" target="_blank" rel="noopener">Lin Clark - A Cartoon Intro to Fiber - React Conf 2017</a></p>
+</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://zeigo.github.io/2018/01/28/2018-1-28-React-Fiber的实现/" data-id="cjcyhwlxx000bmz97y5a3fz4p" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/JavaScript/">JavaScript</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/React/">React</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+ <script src="/jquery/jquery.min.js"></script>
+  <div id="random_posts">
+    <h2>推荐文章</h2>
+    <div class="random_posts_ul">
+      <script>
+          var random_count =4
+          var site = {BASE_URI:'/'};
+          function load_random_posts(obj) {
+              var arr=site.posts;
+              if (!obj) return;
+              // var count = $(obj).attr('data-count') || 6;
+              for (var i, tmp, n = arr.length; n; i = Math.floor(Math.random() * n), tmp = arr[--n], arr[n] = arr[i], arr[i] = tmp);
+              arr = arr.slice(0, random_count);
+              var html = '<ul>';
+            
+              for(var j=0;j<arr.length;j++){
+                var item=arr[j];
+                html += '<li><strong>' + 
+                item.date + ':&nbsp;&nbsp;<a href="' + (site.BASE_URI+item.uri) + '">' + 
+                (item.title || item.uri) + '</a></strong>';
+                if(item.excerpt){
+                  html +='<div class="post-excerpt">'+item.excerpt+'</div>';
+                }
+                html +='</li>';
+                
+              }
+              $(obj).html(html + '</ul>');
+          }
+          $('.random_posts_ul').each(function () {
+              var c = this;
+              if (!site.posts || !site.posts.length){
+                  $.getJSON(site.BASE_URI + 'js/posts.js',function(json){site.posts = json;load_random_posts(c)});
+              } 
+               else{
+                load_random_posts(c);
+              }
+          });
+      </script>
+    </div>
+  </div>
+
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2018/01/23/2018-1-23-React基于key的重排算法/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">React基于key的重排算法</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+ 
+     
+  <div class="comments" id="comments">
+    
+     
+       
+       
+      
+      
+           <div id="gitment_comments"></div>
+    
+  </div>
+ 
+  
+
+</section>
+           
+    <aside id="sidebar">
+  
+    
+
+  
+    
+    <div class="widget-wrap">
+    
+      <div class="widget" id="toc-widget-fixed">
+      
+        <strong class="toc-title">文章目录</strong>
+        <div class="toc-widget-list">
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念"><span class="toc-number">1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#基本属性"><span class="toc-number">2.</span> <span class="toc-text">基本属性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#what"><span class="toc-number">2.1.</span> <span class="toc-text">what</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#how"><span class="toc-number">2.2.</span> <span class="toc-text">how</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Scheduler"><span class="toc-number">3.</span> <span class="toc-text">Scheduler</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#找到更新对应的fiber"><span class="toc-number">3.1.</span> <span class="toc-text">找到更新对应的fiber</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#计算更新的expirationTime"><span class="toc-number">3.2.</span> <span class="toc-text">计算更新的expirationTime</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#insertUpdateIntoFiber"><span class="toc-number">3.3.</span> <span class="toc-text">insertUpdateIntoFiber</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#scheduleWork"><span class="toc-number">3.4.</span> <span class="toc-text">scheduleWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#requestWork"><span class="toc-number">3.5.</span> <span class="toc-text">requestWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#performWork"><span class="toc-number">3.6.</span> <span class="toc-text">performWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#performWorkOnRoot"><span class="toc-number">3.7.</span> <span class="toc-text">performWorkOnRoot</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#renderRoot"><span class="toc-number">3.8.</span> <span class="toc-text">renderRoot</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#workLoop"><span class="toc-number">3.9.</span> <span class="toc-text">workLoop</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#performUnitOfWork"><span class="toc-number">3.10.</span> <span class="toc-text">performUnitOfWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#beginWork"><span class="toc-number">3.11.</span> <span class="toc-text">beginWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#completeUnitOfWork"><span class="toc-number">3.12.</span> <span class="toc-text">completeUnitOfWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#completeWork"><span class="toc-number">3.13.</span> <span class="toc-text">completeWork</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#commitRoot"><span class="toc-number">3.14.</span> <span class="toc-text">commitRoot</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考"><span class="toc-number">5.</span> <span class="toc-text">参考</span></a></li></ol>
+          </div>
+      </div>
+    </div>
+
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+
+  
+</aside>
+
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-left">
+      &copy; 2014 - 2018 Zeigo&nbsp;|&nbsp;
+      主题 <a href="https://github.com/giscafer/hexo-theme-cafe/" target="_blank">Cafe</a>
+    </div>
+     <div id="footer-right">
+      联系方式&nbsp;|&nbsp;zjj1149@gmail.com
+    </div>
+  </div>
+</footer>
+ <script src="/jquery/jquery.min.js"></script>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/about" class="mobile-nav-link">关于</a>
+  
+</nav>
+    <img class="back-to-top-btn" src="/images/fly-to-top.png"/>
+<script>
+// Elevator script included on the page, already.
+window.onload = function() {
+  var elevator = new Elevator({
+    selector:'.back-to-top-btn',
+    element: document.querySelector('.back-to-top-btn'),
+    duration: 1000 // milliseconds
+  });
+}
+</script>
+      
+
+  
+
+  
+
+
+
+
+
+
+
+<!-- author:forvoid begin -->
+<!-- author:forvoid begin -->
+
+  <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+  <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script> 
+  <script>
+  var gitment = new Gitment({
+    // id: '页面 ID', // 可选。默认为 location.href
+    owner: 'zeigo',
+    repo: 'zeigo.github.io',
+    oauth: {
+    client_id: 'e082be8fdcfd8602e6f8',
+    client_secret: '6922cd82b1bcfde93141e086bff18656d32dfc58',
+    }
+  })
+  gitment.render(document.getElementById("gitment_comments"))
+</script>
+
+
+<!-- author:forvoid end -->
+
+<!-- author:forvoid end -->
+
+
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      })
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      })
+    </script>
+    <script type="text/javascript" src="https://cdn.rawgit.com/mathjax/MathJax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+ <script src="/js/is.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+<script src="/js/elevator.js"></script>
+  </div>
+</body>
+</html>

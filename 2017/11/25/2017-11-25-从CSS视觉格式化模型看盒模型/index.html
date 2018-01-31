@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   
-  <title>CSS整理(一) | Zeigo&#39;s blog</title>
+  <title>从CSS视觉格式化模型看盒模型 | Zeigo&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="CSS基础整理，盒模型，BFC，块盒，内联盒">
 <meta name="keywords" content="CSS">
 <meta property="og:type" content="article">
-<meta property="og:title" content="CSS整理(一)">
-<meta property="og:url" content="http://zeigo.github.io/2017/11/25/2017-11-25-CSS整理(一)/index.html">
+<meta property="og:title" content="从CSS视觉格式化模型看盒模型">
+<meta property="og:url" content="http://zeigo.github.io/2017/11/25/2017-11-25-从CSS视觉格式化模型看盒模型/index.html">
 <meta property="og:site_name" content="Zeigo&#39;s blog">
 <meta property="og:description" content="CSS基础整理，盒模型，BFC，块盒，内联盒">
 <meta property="og:image" content="http://p02ojz1i2.bkt.clouddn.com/20171125-box.png">
-<meta property="og:updated_time" content="2017-12-04T17:03:46.678Z">
+<meta property="og:updated_time" content="2018-01-31T05:11:02.011Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="CSS整理(一)">
+<meta name="twitter:title" content="从CSS视觉格式化模型看盒模型">
 <meta name="twitter:description" content="CSS基础整理，盒模型，BFC，块盒，内联盒">
 <meta name="twitter:image" content="http://p02ojz1i2.bkt.clouddn.com/20171125-box.png">
   
@@ -66,9 +66,9 @@
   </div>
 </header>
       <div class="outer">
-        <section id="main"><article id="post-2017-11-25-CSS整理(一)" class="article article-type-post" itemscope itemprop="blogPost">
+        <section id="main"><article id="post-2017-11-25-从CSS视觉格式化模型看盒模型" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2017/11/25/2017-11-25-CSS整理(一)/" class="article-date">
+    <a href="/2017/11/25/2017-11-25-从CSS视觉格式化模型看盒模型/" class="article-date">
   <time datetime="2017-11-25T11:30:44.000Z" itemprop="datePublished">2017-11-25</time>
 </a>
     
@@ -84,7 +84,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      CSS整理(一)
+      从CSS视觉格式化模型看盒模型
     </h1>
   
 
@@ -94,26 +94,27 @@
       
         <!-- Table of Contents -->
         
-        <p>学习CSS的时候，大部分时间只是背属性，写写Demo，并没有真正系统地研究一些基础的原理，学到的还只是一些零碎的知识点。趁着有时间，通过查看w3c的官方文档，希望能从可视化格式模型(Visual formatting model)的角度深入了解。本篇整理几个重要的知识点：盒模型，包含块，BFC，IFC。</p>
+        <p>学习CSS的时候，大部分时间只是背属性，写写Demo，并没有真正系统地研究一些基础的原理，学到的还只是一些零碎的知识点。趁着有时间，通过查看w3c的官方文档，希望能从视觉格式化模型(Visual formatting model)的角度深入了解。本篇整理几个重要的知识点：盒模型，包含块，BFC，IFC。</p>
 <a id="more"></a>
 <h1 id="盒模型-Box-model"><a href="#盒模型-Box-model" class="headerlink" title="盒模型(Box model)"></a>盒模型(Box model)</h1><p><img src="http://p02ojz1i2.bkt.clouddn.com/20171125-box.png" alt=""></p>
 <p>margin edge = outer edge</p>
 <p>content edge = inner edge</p>
-<h1 id="包含块-Containing-blocks"><a href="#包含块-Containing-blocks" class="headerlink" title="包含块(Containing blocks)"></a>包含块(Containing blocks)</h1><p>许多盒的定位和尺寸都取决于一个矩形边界，即包含块。通常，生成的盒子(box)扮演它的后代元素盒子的包含块。</p>
+<h1 id="包含块-Containing-blocks"><a href="#包含块-Containing-blocks" class="headerlink" title="包含块(Containing blocks)"></a>包含块(Containing blocks)</h1><p>许多盒的定位和尺寸都取决于一个矩形边界，即包含块。通常，一个盒子(box)扮演它的后代元素盒子的包含块。</p>
 <p>如何得到确定包含块？如下：</p>
 <ol>
 <li>根元素html，初始包含块，由viewport决定。</li>
-<li><code>position</code>为<code>static</code>或<code>relative</code>，最近的祖先块容器盒的<code>content edge</code>。</li>
-<li><code>position</code>为<code>absolute</code>，取决于最近的定位祖元素，如果是内联元素，包含块为包裹第一和最后一个内联盒<code>padding edge</code>的边界，若该内联元素分成多行，则包含块为<code>undefined</code>；否则为祖元素<code>padding edge</code>。</li>
+<li><code>position</code>为<code>static</code>或<code>relative</code>，最近的祖先块容器盒的content box。</li>
+<li><code>position</code>为<code>absolute</code>，取决于最近的定位祖元素，如果是内联元素，包含块为包裹第一和最后一个内联盒padding box的边界，若该内联元素分成多行，则包含块为undefined；否则为祖元素padding box。</li>
 <li><code>position</code>为<code>fixed</code>，viewport。</li>
 <li>其他，初始包含块。</li>
 </ol>
-<h1 id="块级元素和块盒-Block-level-elements-and-block-boxes"><a href="#块级元素和块盒-Block-level-elements-and-block-boxes" class="headerlink" title="块级元素和块盒(Block-level elements and block boxes)"></a>块级元素和块盒(Block-level elements and block boxes)</h1><p>元素的<code>display</code>决定了盒子的类型，进一步决定其在<code>format model</code>中的行为。</p>
+<h1 id="块级元素和块盒"><a href="#块级元素和块盒" class="headerlink" title="块级元素和块盒"></a>块级元素和块盒</h1><p>block-level element/block box</p>
+<p>元素的<code>display</code>决定了盒子的类型，进一步决定其在format model中的行为。</p>
 <h2 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h2><p>区分：块级盒(Block-level box)，块容器盒(Block container box)，块盒(Block box)</p>
 <figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">display: block | list-item | table</span><br></pre></td></tr></table></figure>
 <p>以上为块级元素，产生块级盒，参与BFC</p>
 <p>除了table box和替换元素(replaced element)，块级盒同时也是块容器盒。块级盒+块容器盒 = 块盒。</p>
-<p>块容器盒可以只包含块级盒，或者只含内联级盒(inline-level box)。块容器盒除了可以是块级盒，还可以是非替换inline-block/table-cell。</p>
+<p>块容器盒可以只包含块级盒，或者创建IFC从而只含内联级盒(inline-level box)。块容器盒除了可以是块级盒，还可以是非替换inline-block/table-cell。</p>
 <p>辨析：块级盒是从自身的角度，作为一部分参与BFC，而块容器盒从元素内部的角度，作为容器。</p>
 <h2 id="匿名块盒"><a href="#匿名块盒" class="headerlink" title="匿名块盒"></a>匿名块盒</h2><ul>
 <li><code>some text</code>周围有匿名块盒。当块容器盒内有块级盒，则强制全变为块级盒。</li>
@@ -124,10 +125,12 @@
 </ul>
 <iframe width="100%" height="300" src="//jsfiddle.net/zeigo/m38rc4nh/embedded/html,css,result/" allowpaymentrequest="" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
 
-<h1 id="内联元素-inline-level-element-和内联盒-inline-box"><a href="#内联元素-inline-level-element-和内联盒-inline-box" class="headerlink" title="内联元素(inline-level element)和内联盒(inline box)"></a>内联元素(inline-level element)和内联盒(inline box)</h1><h2 id="概念-1"><a href="#概念-1" class="headerlink" title="概念"></a>概念</h2><p>区分：内联级盒(inline-level box)，内联盒(inline box)</p>
+<p>一般内联盒中不会包含块级盒，可以不用考虑</p>
+<h1 id="内联元素和内联盒"><a href="#内联元素和内联盒" class="headerlink" title="内联元素和内联盒"></a>内联元素和内联盒</h1><p>inline-level element/inline box</p>
+<h2 id="概念-1"><a href="#概念-1" class="headerlink" title="概念"></a>概念</h2><p>区分：内联级盒(inline-level box)，内联盒(inline box)</p>
 <figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">display: inline | inline-block | inline-table</span><br></pre></td></tr></table></figure>
 <p>以上为内联级元素，生成内联级盒，参与IFC</p>
-<p>内联盒：既是内联级盒，并且内容参与本身包含的IFC，包括非替换且<code>display: inline</code>元素。</p>
+<p>内联盒：本身是内联级盒，并且内容也参与这个IFC，包括非替换且<code>display: inline</code>元素。</p>
 <p>替换内联级元素、inline-block、table-cell不是内联盒，为<code>atomic inline-level box</code>。它们自身被当成内联级盒处理，但内部还是以块盒的形式format。</p>
 <h2 id="匿名内联盒"><a href="#匿名内联盒" class="headerlink" title="匿名内联盒"></a>匿名内联盒</h2><p>任意直接处于块容器盒中的text都被视为匿名内联元素，继承父级块盒的可继承属性。</p>
 <figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">p</span>&gt;</span>some <span class="tag">&lt;<span class="name">em</span>&gt;</span>emphasized<span class="tag">&lt;/<span class="name">em</span>&gt;</span> text <span class="tag">&lt;/<span class="name">p</span>&gt;</span></span><br></pre></td></tr></table></figure>
@@ -136,7 +139,7 @@
 <li>根元素</li>
 <li>浮动</li>
 <li>绝对定位</li>
-<li><code>overflow</code>不为<code>visiable</code></li>
+<li>块级元素<code>overflow</code>不为<code>visiable</code></li>
 <li><code>display</code>为<code>inline-block</code> <code>table-cell</code> <code>table-caption</code></li>
 </ul>
 <blockquote>
@@ -149,8 +152,8 @@
 <h2 id="特性"><a href="#特性" class="headerlink" title="特性"></a>特性</h2><p>创建一块独立的渲染区域，规定内部块级盒布局方式</p>
 <ul>
 <li>BFC中盒子从其包含块顶部开始，依次竖直排布。</li>
-<li>竖直间距由<code>margin</code>决定，同一BFC中相邻的块级盒子间的竖直外边距发生合并。</li>
-<li>每个盒子左<code>margin edge</code>与包含块左边缘接触，（即使有浮动元素(floats)存在，此时盒子的行盒由于floats会收缩)。</li>
+<li>竖直间距由margin决定，同一BFC中相邻的块级盒子间的竖直外边距发生合并。</li>
+<li>每个盒子margin box左边界与包含块左边缘接触，（即使有浮动元素(floats)存在，此时盒子的行盒由于floats会收缩，除非盒子形成新BFC)。</li>
 <li>计算高度时，浮动元素也加入</li>
 <li>BFC不与浮动元素重叠</li>
 <li>BFC内部元素不会影响外部</li>
@@ -160,14 +163,23 @@
 <li>清除浮动</li>
 <li>防止margin合并</li>
 </ul>
-<h1 id="IFC"><a href="#IFC" class="headerlink" title="IFC"></a>IFC</h1><h2 id="特性-1"><a href="#特性-1" class="headerlink" title="特性"></a>特性</h2><ul>
-<li>内联级盒(<code>inline box</code>)从包含块(<code>containing block</code>)顶端开始，依次水平放置。</li>
-<li>水平方向的margin/border/padding在放置时会被考虑，而竖直方向的对齐方式由<code>vertical-align</code>决定。</li>
-<li>包含这些内联盒子形成的矩形区域组成行盒(<code>line box</code>)，行盒的width由包含块及浮动的存在决定，height由各内联级盒”line-height“及<code>vertical-align</code>决定。</li>
-<li>当内联级盒总宽度小于行盒的width，水平的分布由<code>text-align</code>决定；超出时一般分到下一行盒，除非设置<code>white-space</code>等。</li>
-<li>当内联级盒分裂时，margin/padding/border等不会有视觉上影响。如上面匿名块盒的例子，内联级盒分成两半，background也随之分成两半。</li>
-</ul>
-<p>注：”line-height”不一定是真正的<code>line-height</code>，具体的计算留到之后的部分总结。</p>
+<h1 id="IFC"><a href="#IFC" class="headerlink" title="IFC"></a>IFC</h1><h2 id="特性-1"><a href="#特性-1" class="headerlink" title="特性"></a>特性</h2><p>IFC中的内联级盒从包含块顶端开始，依次水平放置。</p>
+<p>水平方向的margin/border/padding在放置时会被考虑，宽度由内容决定，而竖直方向的对齐方式由<code>vertical-align</code>决定，margin/border/padding不会影响高度和布局，但会有视觉效果。包含这些内联盒子形成的矩形区域组成行盒(line box)。</p>
+<p>行盒的width由包含块及浮动的存在决定，一般行盒左右紧贴包含块两端，当存在浮动会缩小（如左浮动，则行盒左边缘与浮动元素右边紧贴）。</p>
+<p>行盒的height由计算”line-height”给出，具体计算方法见下方。</p>
+<p>当内联级盒总宽度小于行盒的width，水平的分布由<code>text-align</code>决定；总宽度超出时会在垂直方向形成新的行盒无缝堆叠，发生超出位置的内联盒一般会分割到多个行盒，除非是单个字符、设置<code>work-break</code>、<code>white-space</code>等，此时overflow。</p>
+<p>当内联盒分割时，分割处不会产生新的margin/padding/border。</p>
+<h2 id="“line-height”的计算"><a href="#“line-height”的计算" class="headerlink" title="“line-height”的计算"></a>“line-height”的计算</h2><ol>
+<li><p>计算行盒中每个内联级盒的高度。对于替换元素，inline-block，inline-table，取margin box高度；对于内联盒（span等）和字符，取<code>line-light</code>。</p>
+</li>
+<li><p>各个内联级盒有自己的基线，非替换inline元素基线为字体基线，替换元素基线为margin box底端，inline-block的基线是它最后一个在文档流中的行盒的基线，当找不到这个行盒，或者<code>overflow</code>不为visible，此时基线为margin box底端。内联级盒以其参照物的基线为基准，根据<code>vertical-align</code>来排布自己的基线，参照物为内联父元素或者块容器父元素的支柱(strut，假设存在的一个宽度0，font、line-height与容器一致的内联盒，提供基线作为参照）。</p>
+</li>
+<li><p>行盒的高度为最高盒的顶端到最低盒的底部(比较时包括支柱)。</p>
+</li>
+</ol>
+<iframe width="100%" height="300" src="//jsfiddle.net/0ymr8u63/embedded/html,css,result/" allowpaymentrequest="" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
+
+<p>i的基线参照span，可以看做参照字符aa基线；span基线参照div的支柱，可以看成参照字符ccc基线。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
 <li><p><a href="https://www.w3.org/TR/2011/REC-CSS2-20110607/box.html" target="_blank" rel="noopener">W3-CSS2.1-8 Box model</a></p>
 </li>
@@ -182,7 +194,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://zeigo.github.io/2017/11/25/2017-11-25-CSS整理(一)/" data-id="cjcyoae3300042f97ml2cp6vx" class="article-share-link">分享</a>
+      <a data-url="http://zeigo.github.io/2017/11/25/2017-11-25-从CSS视觉格式化模型看盒模型/" data-id="cjd2kzaug00000q97tk6erjxa" class="article-share-link">分享</a>
       
       
       
@@ -284,7 +296,7 @@
       
         <strong class="toc-title">文章目录</strong>
         <div class="toc-widget-list">
-              <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#盒模型-Box-model"><span class="toc-number">1.</span> <span class="toc-text">盒模型(Box model)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#包含块-Containing-blocks"><span class="toc-number">2.</span> <span class="toc-text">包含块(Containing blocks)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#块级元素和块盒-Block-level-elements-and-block-boxes"><span class="toc-number">3.</span> <span class="toc-text">块级元素和块盒(Block-level elements and block boxes)</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念"><span class="toc-number">3.1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名块盒"><span class="toc-number">3.2.</span> <span class="toc-text">匿名块盒</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#内联元素-inline-level-element-和内联盒-inline-box"><span class="toc-number">4.</span> <span class="toc-text">内联元素(inline-level element)和内联盒(inline box)</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念-1"><span class="toc-number">4.1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名内联盒"><span class="toc-number">4.2.</span> <span class="toc-text">匿名内联盒</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#BFC"><span class="toc-number">5.</span> <span class="toc-text">BFC</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#创建"><span class="toc-number">5.1.</span> <span class="toc-text">创建</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#特性"><span class="toc-number">5.2.</span> <span class="toc-text">特性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#应用"><span class="toc-number">5.3.</span> <span class="toc-text">应用</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#IFC"><span class="toc-number">6.</span> <span class="toc-text">IFC</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#特性-1"><span class="toc-number">6.1.</span> <span class="toc-text">特性</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">7.</span> <span class="toc-text">参考</span></a></li></ol>
+              <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#盒模型-Box-model"><span class="toc-number">1.</span> <span class="toc-text">盒模型(Box model)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#包含块-Containing-blocks"><span class="toc-number">2.</span> <span class="toc-text">包含块(Containing blocks)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#块级元素和块盒"><span class="toc-number">3.</span> <span class="toc-text">块级元素和块盒</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念"><span class="toc-number">3.1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名块盒"><span class="toc-number">3.2.</span> <span class="toc-text">匿名块盒</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#内联元素和内联盒"><span class="toc-number">4.</span> <span class="toc-text">内联元素和内联盒</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#概念-1"><span class="toc-number">4.1.</span> <span class="toc-text">概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名内联盒"><span class="toc-number">4.2.</span> <span class="toc-text">匿名内联盒</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#BFC"><span class="toc-number">5.</span> <span class="toc-text">BFC</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#创建"><span class="toc-number">5.1.</span> <span class="toc-text">创建</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#特性"><span class="toc-number">5.2.</span> <span class="toc-text">特性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#应用"><span class="toc-number">5.3.</span> <span class="toc-text">应用</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#IFC"><span class="toc-number">6.</span> <span class="toc-text">IFC</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#特性-1"><span class="toc-number">6.1.</span> <span class="toc-text">特性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#“line-height”的计算"><span class="toc-number">6.2.</span> <span class="toc-text">“line-height”的计算</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考"><span class="toc-number">7.</span> <span class="toc-text">参考</span></a></li></ol>
           </div>
       </div>
     </div>
